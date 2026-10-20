@@ -20,7 +20,7 @@ test("encrypted check-in survives lock, reload and can be edited",async({page})=
   expect(stored).toBeTruthy();
   expect(stored).not.toContain("Grateful for a calm afternoon.");
   await page.getByRole("button",{name:"My journal"}).click();
-  await expect(page.getByText("Grateful for a calm afternoon.")).toBeVisible();
+  await expect(page.locator("#history-list").getByText("Grateful for a calm afternoon.")).toBeVisible();
   await page.getByRole("button",{name:"Edit"}).click();
   await page.locator('[data-mood="5"]').click();
   await page.locator("#save-entry").click();
