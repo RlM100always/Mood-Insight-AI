@@ -1,0 +1,9 @@
+import test from "node:test";import assert from "node:assert/strict";import {validateEntry,pruneEntries,metrics,findPatterns,recommendations,retentionCutoff,localDate,safeEntryList} from "../logic.mjs";
+const now=new Date(2026,9,20,12);const sample=(date,mood=3,extra={})=>({date,mood,sleep:7,exercise:20,stress:3,note:"",...extra});
+test("validates and normalizes fields",()=>{const x=validateEntry(sample("2026-10-19","4",{sleep:"6.5",exercise:"30",stress:"2"}),now);assert.equal(x.mood,4);assert.equal(x.sleep,6.5);assert.equal(x.exercise,30)});
+test("rejects invalid ratings and future dates",()=>{assert.throws(()=>validateEntry(sample("2026-10-19",6),now));assert.throws(()=>validateEntry(sample("2026-10-21"),now));assert.throws(()=>validateEntry(sample("2026-10-19",2,{exercise:-1}),now))});
+test("applies a twelve month rolling cutoff",()=>{assert.equal(retentionCutoff(now),"2025-10-20");assert.deepEqual(pruneEntries([sample("2025-10-19"),sample("2026-10-20")],now).map(e=>e.date),["2026-10-20"])});
+test("counts streak from yesterday if today is absent",()=>{const rows=[sample("2026-10-18",2),sample("2026-10-19",4)];assert.deepEqual(metrics(rows,now),{count:2,average:3,streak:2})});
+test("insights require adequate comparison groups",()=>{assert.deepEqual(findPatterns([sample("2026-10-19")]),[]);const rows=Array.from({length:8},(_,i)=>sample("2026-10-"+String(1+i).padStart(2,"0"),i<4?1:5,{sleep:i<4?5:9,stress:i<4?4:2,exercise:i<4?0:30}));assert.ok(findPatterns(rows).some(p=>p.title==="Sleep and mood"))});
+test("recommendations are always three distinct explainable options",()=>{const list=recommendations([sample("2026-10-19",1,{sleep:5,stress:5,exercise:0})]);assert.equal(list.length,3);assert.equal(new Set(list.map(x=>x.id)).size,3);assert.ok(list.every(x=>x.reason&&x.minutes&&x.difficulty))});
+test("rejects duplicate date imports",()=>{assert.equal(safeEntryList([sample(localDate()),sample(localDate())]),false)})
