@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Mood Insight AI",
+    "slug": "mood-insight-native",
+    "scheme": "moodinsight",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.moodinsight.native",
+      "infoPlist": {
+        "NSAppTransportSecurity": {"NSAllowsArbitraryLoads": false}
+      }
+    },
+    "android": {
+      "package": "app.moodinsight.native",
+      "edgeToEdgeEnabled": true,
+      "permissions": []
+    },
+    "plugins": [
+      ["expo-sqlite", {"useSQLCipher": true}],
+      ["expo-secure-store", {"configureAndroidBackup": true}]
+    ],
+    "extra": {"appPurpose": "private-offline-wellbeing"},
+    "updates": {"enabled": false}
+  }
+}
