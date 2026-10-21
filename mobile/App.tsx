@@ -83,7 +83,6 @@ export default function App() {
   };
   const handleError = (cause: unknown) => {
     const message = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
-    setError(message);
     Alert.alert('Unable to complete',message);
   };
   const boot = async () => {

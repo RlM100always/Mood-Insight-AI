@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import type {Entry, EntryInput, Session} from '../types';
+import {localDay} from '../insights';
 
 const DB_NAME = 'mood_insight_private.db';
 const KEY_ALIAS = 'mood_insight_cipher_key_v1';
@@ -64,8 +65,9 @@ function db(): SQLite.SQLiteDatabase {
 
 export async function purgeExpired(): Promise<void> {
   const limit = Date.now() - RETENTION_MS;
-  await db().runAsync('DELETE FROM mood_entries WHERE created_at < ?', limit);
-  await db().runAsync('DELETE FROM activity_sessions WHERE created_at < ?', limit);
+  const cutoffDay = localDay(new Date(limit));
+  await db().runAsync('DELETE FROM mood_entries WHERE day < ?', cutoffDay);
+  await db().runAsync('DELETE FROM activity_sessions WHERE day < ? OR created_at < ?', cutoffDay, limit);
 }
 
 export async function listEntries(): Promise<Entry[]> {
@@ -75,6 +77,8 @@ export async function listEntries(): Promise<Entry[]> {
 
 export async function saveEntry(input: EntryInput): Promise<void> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.day) ||
+    !Number.isFinite(new Date(input.day + 'T12:00:00').getTime()) ||
+    localDay(new Date(input.day + 'T12:00:00')) !== input.day ||
     !Number.isInteger(input.mood) || input.mood < 1 || input.mood > 5 ||
     !Number.isFinite(input.sleep_hours) || input.sleep_hours < 0 || input.sleep_hours > 24 ||
     !Number.isInteger(input.exercise_min) || input.exercise_min < 0 || input.exercise_min > 600 ||

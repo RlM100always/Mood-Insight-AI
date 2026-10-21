@@ -24,7 +24,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - run: npm install --no-audit --no-fund
       - run: npx expo prebuild --platform android --no-install --non-interactive
       - name: Build installable release APK
