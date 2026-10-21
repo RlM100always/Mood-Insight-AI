@@ -10,6 +10,7 @@ import base64
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 import json
+import math
 import os
 from pathlib import Path
 import secrets
@@ -113,33 +114,44 @@ def create_app(config: dict | None = None) -> Flask:
         return value
 
     def valid_mood(value: dict) -> dict:
-        # Strict validation; don't silently infer missing observations.
+        # Invalid values must be rejected, never rounded to a plausible rating.
+        def integer_score(name: str, default=None):
+            raw = value.get(name, default)
+            if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+                raise ValueError(name + " must be an integer")
+            if not math.isfinite(float(raw)) or int(raw) != raw or not 1 <= int(raw) <= 5:
+                raise ValueError(name + " must be between 1 and 5")
+            return int(raw)
+
         try:
             day = date.fromisoformat(str(value["day"]))
-            if day.isoformat() != str(value["day"]) or day > date.today():
-                raise ValueError("Future/invalid dates are not allowed")
-            mood = int(value["mood"])
-            stress = int(value["stress"])
-            sleep = float(value["sleep_hours"])
-            move = float(value["exercise_min"])
-            if isinstance(value["mood"], bool) or isinstance(value["stress"], bool):
-                raise ValueError()
-            if not all((1 <= mood <= 5, 1 <= stress <= 5, 0 <= sleep <= 24, 0 <= move <= 600)):
-                raise ValueError()
-            if move != int(move):
-                raise ValueError()
-            note = str(value.get("note", ""))
-            if len(note) > 2000:
-                raise ValueError()
-            energy = int(value.get("energy", 3))
-            quality = int(value.get("sleep_quality", 3))
-            if not (1 <= energy <= 5 and 1 <= quality <= 5):
-                raise ValueError()
+            lower = date.today() - timedelta(days=365)
+            if day.isoformat() != str(value["day"]) or not lower <= day <= date.today():
+                raise ValueError("Date must be within the last 365 days")
+            mood = integer_score("mood")
+            stress = integer_score("stress")
+            energy = integer_score("energy", 3)
+            quality = integer_score("sleep_quality", 3)
+            raw_sleep = value["sleep_hours"]
+            raw_move = value["exercise_min"]
+            if isinstance(raw_sleep, bool) or not isinstance(raw_sleep, (int, float)):
+                raise ValueError("Sleep must be numeric")
+            if isinstance(raw_move, bool) or not isinstance(raw_move, (int, float)):
+                raise ValueError("Exercise must be numeric")
+            sleep = float(raw_sleep)
+            move = float(raw_move)
+            if not math.isfinite(sleep) or not math.isfinite(move):
+                raise ValueError("Non-finite values are invalid")
+            if not 0 <= sleep <= 24 or not 0 <= move <= 600 or int(move) != move:
+                raise ValueError("Sleep or exercise out of range")
+            note = value.get("note", "")
+            if not isinstance(note, str) or len(note) > 2000:
+                raise ValueError("Notes must be plain text no longer than 2000 characters")
         except (ValueError, KeyError, TypeError, OverflowError):
-            raise ValueError("Expected valid day, mood/stress/energy/quality 1–5, sleep 0–24, activity 0–600")
-        return dict(day=str(day), mood=mood, stress=stress,
-                    sleep_hours=sleep, exercise_min=int(move), energy=energy,
-                    sleep_quality=quality, note=note)
+            raise ValueError("Provide a valid date (past 365 days), integer scores 1–5, "
+                             "sleep 0–24, integer activity minutes 0–600 and a short note")
+        return dict(day=str(day), mood=mood, stress=stress, sleep_hours=sleep,
+                    exercise_min=int(move), energy=energy, sleep_quality=quality, note=note)
 
     def trim_records(db):
         cutoff=(date.today()-timedelta(days=365)).isoformat()
