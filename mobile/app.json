@@ -9,13 +9,13 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.moodinsight.native",
+      "bundleIdentifier": "app.moodinsight.mobile",
       "infoPlist": {
         "NSAppTransportSecurity": {"NSAllowsArbitraryLoads": false}
       }
     },
     "android": {
-      "package": "app.moodinsight.native",
+      "package": "app.moodinsight.mobile",
       "edgeToEdgeEnabled": true,
       "permissions": []
     },
