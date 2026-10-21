@@ -26,11 +26,29 @@ jobs:
           java-version: '17'
       - run: npm install --no-audit --no-fund
       - run: npx expo prebuild --platform android --no-install --non-interactive
+      - name: Configure stable private signing when available
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash scripts/configure-android-signing.sh
       - name: Build native release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x android/gradlew
           cd android
           ./gradlew --no-daemon --stacktrace assembleRelease
+      - name: Verify APK signature
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)
+          test -s "$APK"
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -x "$apksigner"
+          "$apksigner" verify --print-certs "$APK"
       - uses: actions/upload-artifact@v4
         with:
           name: mood-insight-android-apk
