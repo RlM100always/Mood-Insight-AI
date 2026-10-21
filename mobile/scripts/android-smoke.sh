@@ -74,13 +74,26 @@ PY
 
 wait_for_text "Your space, your pace."
 echo "PASS: React Native welcome UI rendered"
-coords=$(tap_label "I am 18 or older")
-read -r x y <<< "$coords"
-adb shell input tap "$x" "$y"
+find_and_tap(){
+  local label="$1"
+  local coords
+  for attempt in 1 2 3 4; do
+    if coords=$(tap_label "$label" 2>> "$DIAG"); then
+      local x y
+      read -r x y <<< "$coords"
+      adb shell input tap "$x" "$y"
+      return 0
+    fi
+    echo "Scroll to look for: $label (attempt $attempt)" >> "$DIAG"
+    adb shell input swipe 470 1500 470 630 450 || true
+    sleep 2
+  done
+  echo "Required control not found after scrolling: $label" >&2
+  return 1
+}
+find_and_tap "I am 18 or older"
 sleep 2
-coords=$(tap_label "Enter my private space")
-read -r x y <<< "$coords"
-adb shell input tap "$x" "$y"
+find_and_tap "Enter my private space"
 wait_for_text "How are you feeling?"
 echo "PASS: consent saved, SQLCipher initialized and dashboard rendered"
 adb exec-out screencap -p > android-smoke.png
