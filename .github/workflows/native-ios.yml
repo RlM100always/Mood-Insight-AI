@@ -28,12 +28,12 @@ jobs:
       - run: npx expo prebuild --platform ios --no-install --non-interactive
       - name: Install native CocoaPods
         run: cd ios && pod install
-      - name: Compile for iOS simulator
+      - name: Compile bundled release app for iOS simulator
         run: |
           cd ios
           workspace=$(find . -maxdepth 1 -name '*.xcworkspace' | head -n 1)
           scheme=$(basename "$workspace" .xcworkspace)
-          xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Debug -sdk iphonesimulator \
+          xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Release -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO build
       - name: Boot simulator and launch app
@@ -41,7 +41,7 @@ jobs:
           sim=$(xcrun simctl list devices available --json | python3 -c "import sys,json; d=json.load(sys.stdin); print(next(x['udid'] for xs in d['devices'].values() for x in xs if 'iPhone' in x['name']))")
           xcrun simctl boot "$sim"
           xcrun simctl bootstatus "$sim" -b
-          app=$(find ios/build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
+          app=$(find ios/build/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
           test -n "$app"
           xcrun simctl install booted "$app"
           xcrun simctl launch booted app.moodinsight.mobile
