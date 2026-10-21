@@ -2,12 +2,15 @@
 
 React Native + Expo custom native binary (not WebView/PWA).
 
-## Features
-- Native Today, Patterns, Activities, Journal and Privacy screens.
-- SQLCipher encrypted SQLite with 256-bit random key stored in SecureStore; all personal entries remain on the phone.
-- Save, edit, delete, mood chart and streak; offline local recommendations and activity feedback.
-- **On-device trained ML inference demonstration**: a genuine scikit-learn multinomial logistic regression, trained on **1,800 explicitly synthetic examples**, exported as model coefficients to `src/ml/demo-model.json` and evaluated locally in JavaScript with softmax. No network or Flask calls are made. The **demonstration is not validated on real people or qualified for mental healthcare**.
-- Real-data re-training/export pipeline in `research/export_mobile_model.py`, with group-separated held-out evaluation.
+## Advanced app features
+
+- **Deeper mood check-ins:** 1–5 mood, stress, energy, sleep quality, sleep hours, exercise minutes, context tags and optional journal notes; edit old entries without losing existing records.
+- **Encrypted local history:** SQLCipher AES-256 with device-protected key and migration of existing data; on-device journal search by date, notes and context, 30-day or all-history views.
+- **Personal insights:** 7-day and 30-day mood reviews, rolling average vs previous week (when comparable), day-of-week averages, 30-day mood distribution, context comparison with minimum sample thresholds and clear non-causal explanations.
+- **Actionable activity studio:** 11 activity blueprints, explainable top-three ranking using selected focus, time available, recent logs and previous feedback; guided steps, pausable on-screen timer, completion log and optional before/after mood feedback.
+- **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
+- **Experimental on-device ML:** local trained logistic regression probability display on the Patterns screen, clearly labelled as trained on synthetic data, not validated for real health predictions.
+- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Old recordings are migrated with default values for new optional measurements.
 
 ## Validation
 - GitHub Actions: React Native typecheck, feature/inference tests and Android JS bundle.

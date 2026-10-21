@@ -8,11 +8,16 @@ import {StatusBar} from 'expo-status-bar';
 import type {Activity, Entry, MoodScore, Session} from './src/types';
 import {
   hasConsent, acceptConsent, openVault, listEntries, saveEntry, removeEntry,
-  listSessions, logSession, rateSession, eraseEverything
+  listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences
 } from './src/data/vault';
 import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
 import type {LinearModel} from './src/ml/linear';
 import {predictNextMood,canPredict} from './src/ml/linear';
+import {DEFAULT_PREFERENCES} from './src/deep';
+import type {Preferences} from './src/deep';
+import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
+import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
+import {ActivityExplorer} from './src/ui/Activities';
 import demoModel from './src/ml/demo-model.json';
 
 const C = {
@@ -20,11 +25,11 @@ const C = {
   primary: '#325C57', teal: '#D8EDE5', peach: '#FBE6DA',
   lilac: '#EAE3F8', line: '#E6EAE8', grey: '#F0F3F2', red: '#AA4B45'
 };
-type Tab = 'Today' | 'Patterns' | 'Activities' | 'Journal' | 'Privacy';
+type Tab = 'Today' | 'Patterns' | 'Activities' | 'Journal' | 'Progress' | 'Privacy';
 const NAV: {label: Tab; icon: string}[] = [
   {label: 'Today',icon: '◉'}, {label: 'Patterns',icon: '▥'},
   {label: 'Activities',icon: '✦'}, {label: 'Journal',icon: '▤'},
-  {label: 'Privacy',icon: '♧'}
+  {label: 'Progress',icon: '◷'}, {label: 'Privacy',icon: '♧'}
 ];
 const MOODS: {mood: MoodScore; emoji: string; label: string}[] = [
   {mood: 1,emoji: '😞',label:'Very low'}, {mood: 2,emoji:'😕',label:'Low'},
@@ -77,12 +82,16 @@ export default function App() {
   const [sleep,setSleep] = useState('7');
   const [exercise,setExercise] = useState('0');
   const [note,setNote] = useState('');
+  const [energy,setEnergy] = useState<MoodScore>(3);
+  const [sleepQuality,setSleepQuality] = useState<MoodScore>(3);
+  const [tags,setTags] = useState<string[]>([]);
+  const [preferences,setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [saving,setSaving] = useState(false);
   const [privacyAccepted,setPrivacyAccepted] = useState(false);
 
   const refresh = async () => {
-    const [m, a] = await Promise.all([listEntries(),listSessions()]);
-    setEntries(m); setSessions(a);
+    const [m, a, p] = await Promise.all([listEntries(),listSessions(),loadPreferences()]);
+    setEntries(m); setSessions(a);setPreferences(p);
   };
   const handleError = (cause: unknown) => {
     const message = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
@@ -112,10 +121,10 @@ export default function App() {
     try {
       await saveEntry({
         day, mood, sleep_hours:Number(sleep), exercise_min:Number(exercise),
-        stress, note:note.trim()
+        stress, note:note.trim(),energy,sleep_quality:sleepQuality,context_tags:tags.join(',')
       });
       await refresh();
-      setNote(''); setDay(localDay());
+      setNote(''); setDay(localDay());setEnergy(3);setSleepQuality(3);setTags([]);
       Alert.alert('Saved on your device','Your check-in is encrypted in the local database.');
     } catch (cause) {handleError(cause);}
     finally {setSaving(false);}
@@ -123,7 +132,8 @@ export default function App() {
   const edit = (entry: Entry) => {
     setDay(entry.day);setMood(entry.mood);setStress(entry.stress);
     setSleep(String(entry.sleep_hours));setExercise(String(entry.exercise_min));
-    setNote(entry.note);setTab('Today');
+    setNote(entry.note);setEnergy(entry.energy||3);setSleepQuality(entry.sleep_quality||3);
+    setTags(entry.context_tags?entry.context_tags.split(','):[]);setTab('Today');
   };
   const confirmRemove = (entry: Entry) => Alert.alert(
     'Delete this day?', 'This permanently removes the check-in from this device.', [
@@ -140,11 +150,12 @@ export default function App() {
         try {
           await eraseEverything();setEntries([]);setSessions([]);
           setConsented(false);setPrivacyAccepted(false);setTab('Today');
-          setNote('');setDay(localDay());setError('');
+          setNote('');setDay(localDay());setError('');setEnergy(3);setSleepQuality(3);setTags([]);setPreferences(DEFAULT_PREFERENCES);
         } catch(e) {handleError(e);}
       })()}
     ]
   );
+  const persistPreferences = async (p:Preferences) => {await savePreferences(p);setPreferences(p);};
   const activities = useMemo(()=>recommend(entries),[entries]);
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
@@ -218,6 +229,7 @@ export default function App() {
                 style={[s.chip,stress===v && s.chipActive]}>
                 <Text style={[s.chipText,stress===v && {color:C.white}]}>{v}</Text>
               </Pressable>)}</View>
+            <AdditionalCheckin energy={energy} onEnergy={setEnergy} quality={sleepQuality} onQuality={setSleepQuality} tags={tags} onTags={setTags}/>
             <Field label="Your thoughts (optional)" value={note} onChangeText={setNote} multiline maxLength={2000}/>
             <Primary label={saving?'Saving…':'Save private check-in'} disabled={saving} action={()=>void save()}/>
             <Text style={s.footnote}>One entry per day. Saving the same date updates it.</Text>
@@ -261,59 +273,22 @@ export default function App() {
           </Card>):<Card><Text style={s.h3}>No dependable comparisons yet</Text>
             <Text style={s.copy}>Try logging for a few more days. We will never invent statistics to fill empty charts.</Text>
           </Card>}
+          <InsightExplorer entries={entries} sessions={sessions}/>
           <Text style={s.footnote}>These are descriptive observations, not diagnoses, predictions, or evidence that one activity caused a mood change.</Text>
         </>:null}
 
         {tab==='Activities'?<>
-          <Heading kicker="Small, useful actions" title="Something gentle for today" description="Three suggestions with a reason, time and difficulty."/>
-          <Card tint={C.teal}><Text style={s.kicker}>PERSONALISED, NOT PRESCRIPTIVE</Text>
-            <Text style={s.copy}>Suggestions consider your latest check-in and observed patterns when enough history exists. They do not claim proven individual benefits.</Text>
-          </Card>
-          {activities.map((a:Activity,i:number)=><Card key={a.id}>
-            <View style={s.activityRow}><Text style={s.activityIndex}>0{i+1}</Text>
-              <View style={{flex:1}}><Text style={s.h3}>{a.title}</Text>
-                <Text style={s.activityMeta}>{a.minutes} min  ·  {a.difficulty}</Text>
-              </View></View>
-            <Text style={s.copy}>{a.reason}</Text>
-            <Pressable accessibilityRole="button" style={s.outline} onPress={()=>void(async()=>{
-              try {await logSession(a.id,localDay());await refresh();Alert.alert('Nice work','Activity saved privately on your phone.');}
-              catch(e){handleError(e);}
-            })()}><Text style={s.outlineText}>I tried this  ✓</Text></Pressable>
-          </Card>)}
-          <Text style={s.h2}>Your activity feedback</Text>
-          <Card><Text style={s.copy}>{completed} activities recorded. Feedback can help you reflect on what feels useful.</Text>
-            {sessions.slice(0,5).map(item=><View key={item.id} style={s.sessionRow}>
-              <View style={{flex:1}}><Text style={s.sessionTitle}>{item.activity_id.replace(/-/g,' ')}</Text>
-                <Text style={s.small}>{readableDay(item.day)}</Text></View>
-              {item.helpful===null?
-                <View style={s.feedbackRow}>
-                  <Pressable accessibilityLabel="Helpful" onPress={()=>void(async()=>{await rateSession(item.id,true);await refresh();})()}><Text style={s.feedback}>👍</Text></Pressable>
-                  <Pressable accessibilityLabel="Not helpful" onPress={()=>void(async()=>{await rateSession(item.id,false);await refresh();})()}><Text style={s.feedback}>👎</Text></Pressable>
-                </View>
-              : <Text style={s.small}>{item.helpful===1?'Helpful':'Not helpful'}</Text>}
-            </View>)}
-          </Card>
+          <Heading kicker="Personal activity plans" title="Small actions, real choices" description="A step-by-step plan, tailored reasons and feedback that changes your recommendations."/>
+          <ActivityExplorer entries={entries} sessions={sessions} preferences={preferences} onPreferences={persistPreferences} refresh={refresh}/>
         </>:null}
 
         {tab==='Journal'?<>
-          <Heading kicker="Your private journal" title="Every day has a story" description="Your mood history is encrypted and stored only on this device."/>
-          {entries.length===0?<Card><Text style={s.h3}>Your journal is empty</Text>
-            <Text style={s.copy}>Start with a check-in. It takes less than a minute.</Text>
-            <Primary label="Log my mood" action={()=>setTab('Today')}/>
-          </Card>:entries.map(e=><Card key={e.id}>
-            <View style={s.journalHeader}>
-              <View><Text style={s.h3}>{readableDay(e.day)}</Text>
-                <Text style={s.activityMeta}>{MOODS.find(m=>m.mood===e.mood)?.emoji}  {MOODS.find(m=>m.mood===e.mood)?.label} · Stress {e.stress}/5</Text>
-              </View>
-              <Pill>{e.mood}/5</Pill>
-            </View>
-            <Text style={s.small}>{e.sleep_hours}h sleep  ·  {e.exercise_min}m movement</Text>
-            {e.note ? <Text style={[s.copy,{marginTop:12}]}>{e.note}</Text> : null}
-            <View style={s.journalActions}>
-              <Pressable onPress={()=>edit(e)}><Text style={s.action}>Edit</Text></Pressable>
-              <Pressable onPress={()=>confirmRemove(e)}><Text style={[s.action,{color:C.red}]}>Delete</Text></Pressable>
-            </View>
-          </Card>)}
+          <Heading kicker="Private journal" title="Your story, your words" description="Search context, notes and dates; edit or remove any entry."/>
+          <JournalSearch entries={entries} onEdit={edit} onDelete={confirmRemove}/>
+        </>:null}
+        {tab==='Progress'?<>
+          <Heading kicker="A gentle progress space" title="Your wellbeing journey" description="Set realistic goals and reflect on your own participation."/>
+          <ProgressExplorer entries={entries} sessions={sessions} preferences={preferences} onPreferences={persistPreferences}/>
         </>:null}
 
         {tab==='Privacy'?<>
