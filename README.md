@@ -20,11 +20,18 @@ The native Patterns screen now includes an offline explorer for **real ABS 2020â
 - Native screens: mood, sleep, stress and exercise logging, journal, trends, explanations, activities, privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore
 - Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
-- **Trained ML pipeline**: scikit-learn logistic regression model fitted to explicitly synthetic demo data; fixed model weights bundled and executed fully on-device. The demo is **not** validated or clinically meaningful.
+- **Three trained synthetic-demo classifiers on device:** Logistic Regression, a compact Decision Tree (depth 3) and Random Forest (8 shallow trees), selectable in Patterns. They run offline, are **not** trained on real Australian individual records and have **no validated health-prediction accuracy**.
 - Exporter to fit the same ML runtime from authentic consented research data, plus Random Forest/Decision Tree/Logistic Regression/MLP research comparison scripts
 
 ### Build / test
 See [mobile/README.md](mobile/README.md). The Android APK and iOS simulator workflows are under [.github/workflows](.github/workflows). Build/test success must be confirmed in GitHub Actions; emulator/simulator are not physical-device verification.
+
+### Release and safety gates
+
+- New releases are gated on a **successful Android emulator feature test**, not compilation alone. Failed test builds remain Actions artifacts for debugging.
+- Stable APK updates require your own private Android signing secrets; see [Android signing setup](ANDROID_SIGNING.md). Older ephemeral-key APKs may not be upgrade-compatible.
+- A new `0.3.1` Android APK and its deeper journal/activity/progress smoke test have been submitted to GitHub Actions; use [Actions](https://github.com/RlM100always/Mood-Insight-AI/actions) for live verified status, not assumptions.
+- [Physical-device QA checklist](DEVICE_TESTING.md) and [Australian individual-level data access/preflight](research/AU_PARTICIPANT_DATA_ACCESS.md) explain what independent evidence is still required.
 
 ### Outstanding
 Real participant dataset and ethical approval, evaluation against actual participant-held-out mood logs, physical Android/iPhone testing, real Mood Buster source integration and app store publication. No fabricated model accuracies or user-study findings.

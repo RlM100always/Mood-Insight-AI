@@ -23,10 +23,10 @@ The optional UI under **Privacy → Optional Flask backend connection** can chec
 
 ## 3. Machine learning, scikit-learn
 - Python-only scikit-learn training and model comparison: `research/model_lab.py`, `research/train_synthetic_demo.py`.
-- JS on-device inference for an exported multinomial logistic-regression demo: `mobile/src/ml/linear.ts`; this model is trained on **synthetic** samples, not actual Australian participants.
+- **Three offline inference demonstration models:** multinomial Logistic Regression (`mobile/src/ml/linear.ts`), a compact scikit-learn Decision Tree (depth 3) and an 8-tree Random Forest (`mobile/src/ml/trees.ts` and `trees-demo.json`). All were fitted on **synthetic** samples; none is validated on Australian participants. The research pipeline separately supports larger, cross-validated tree/forest parameter searches.
 - Official Australian aggregates are **not** used to train personal mood prediction models because those public tables provide neither individual observations nor next-day targets.
 - Model comparison numbers in the diagram (90.6% Random Forest, 89.0% Decision Tree, 91.2% Logistic Regression), along with any claimed >2s/<50ms response time or 70% mood improvement, are **unverified requirements / placeholders**. Never show them as measured performance. Genuine metrics require a participant-separated held-out dataset, timing measurements and actual activity evaluation.
-- The sklearn models themselves are **not** executing as Python code on a phone. The on-device JavaScript inference port runs the exported logistic regression coefficients.
+- Scikit-learn **does not execute as Python on a phone**. The on-device TypeScript runtime evaluates exported logistic coefficients and compact tree nodes.
 
 ## 4. Real Australian data, no fabrication
 - `research/data/nsmhw_2020_2022.json`: sourced from published Australian Bureau of Statistics NSMHW 2020–2022 tables (age/sex and disorder group/sex public percentages).
@@ -46,4 +46,6 @@ The optional UI under **Privacy → Optional Flask backend connection** can chec
 - Python Flask unit tests: registration, authentication, request validation, AES-GCM ciphertext, recommendations, personal history, activities, deletion and real ABS data.
 - React Native JS/unit checks: preferences, ML inference, Australian dataset provenance and app bundle/type checks.
 - Android/iOS native build jobs exist; **source test pass does not mean the full end-to-end app works on physical devices**.
-- Android emulator feature-test failures must be inspected, fixed and rerun before production readiness. Never remove test assertions to make CI green artificially.
+- Android emulator feature-test failures must be inspected, fixed and rerun before production readiness. Current E2E includes save, native dialog, journal persistence after process restart, activity completion/feedback, progress and SQLCipher health. Never remove test assertions to make CI green artificially.
+- GitHub experimental release publication is now gated on successful Android emulator E2E; compilation alone is not sufficient.
+- See `research/AU_PARTICIPANT_DATA_ACCESS.md` and `research/dataset_preflight.py` for real-data model preparation. No approved individual-level dataset has been obtained.
