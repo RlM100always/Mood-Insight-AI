@@ -36,22 +36,6 @@ jobs:
           name: mood-insight-android-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
-  publish-android-apk:
-    needs: build-android
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Publish this commit's APK to GitHub Releases
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.run_id }}
-          SOURCE_SHA: ${{ github.sha }}
-        run: bash scripts/publish-android-apk.sh
-
   android-emulator-smoke:
     needs: build-android
     runs-on: ubuntu-latest

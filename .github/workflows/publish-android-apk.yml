@@ -7,12 +7,6 @@ on:
         description: 'Optional Android build run ID (leave blank to use newest available APK)'
         required: false
         type: string
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/publish-android-apk.yml'
-      - 'scripts/publish-android-apk.sh'
   workflow_run:
     workflows:
       - Native Android APK and emulator smoke
@@ -31,6 +25,8 @@ concurrency:
 
 jobs:
   publish-experimental-apk:
+    # Do not distribute compile-only APKs when the emulator feature test failed.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -2,8 +2,7 @@
 set -Eeuo pipefail
 
 # Publish already-compiled GitHub Actions Android APK as a clearly labelled
-# experimental pre-release. This is independent of emulator smoke status:
-# a built APK is NOT proof that its runtime is working on real devices.
+# experimental pre-release. Only publish after the complete Android workflow succeeded, including feature smoke.
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY missing}"
 SOURCE_RUN_ID="${SOURCE_RUN_ID:-}"
 SOURCE_SHA="${SOURCE_SHA:-}"
@@ -25,6 +24,13 @@ if [[ -n "$SOURCE_RUN_ID" ]]; then
     echo "Only Android APK builds from this repo's main branch may be published."
     exit 1
   fi
+  status=$(jq -r '.status' <<< "$info")
+  conclusion=$(jq -r '.conclusion // ""' <<< "$info")
+  workflow=$(jq -r '.name // ""' <<< "$info")
+  if [[ "$workflow" != "Native Android APK and emulator smoke" || "$status" != "completed" || "$conclusion" != "success" ]]; then
+    echo "Refusing publication: APK workflow must pass compilation AND emulator E2E checks (status=$status conclusion=$conclusion)."
+    exit 1
+  fi
   SOURCE_SHA=$(jq -r '.head_sha' <<< "$info")
   asset_id=$(find_run_artifact "$SOURCE_RUN_ID")
   if [[ -z "$asset_id" ]]; then
@@ -42,7 +48,7 @@ else
       break
     fi
   done < <(gh api "repos/$REPO/actions/runs?branch=main&per_page=30" --jq \
-    '.workflow_runs[] | select(.name == "Native Android APK and emulator smoke") | "\(.id) \(.head_sha)"')
+    '.workflow_runs[] | select(.name == "Native Android APK and emulator smoke" and .conclusion == "success") | "\(.id) \(.head_sha)"')
 fi
 
 if [[ -z "$SOURCE_RUN_ID" || -z "$SOURCE_SHA" ]]; then
@@ -74,7 +80,7 @@ This APK is a native React Native Android test build, built from commit
 
 **IMPORTANT:** This is an **experimental pre-release**, not a verified production app.
 A successful APK compilation does not guarantee the app launches or works on every
-Android handset. Emulator smoke tests may fail independently. Use fictional test
+Android handset. The GitHub Actions emulator smoke test passed for this exact APK. It is still NOT a real-\nphone verification. Use fictional test
 data only until startup, encryption and save/reopen are independently validated.
 
 The on-device ML demo was trained on synthetic data only. It is not a clinical
@@ -82,7 +88,7 @@ or validated mental-health prediction tool.
 
 **Install:** Download the APK on an Android device, open it from Files/Downloads,
 and approve installation from that source if Android asks. Do not bypass Android
-security warnings. It does not install on an iPhone.
+security warnings. It does not install on an iPhone.\n\n**Update warning:** GitHub-hosted builds can use ephemeral Android signing keys.\nAn older APK may refuse in-place update (INSTALL_FAILED_UPDATE_INCOMPATIBLE).\nDo not uninstall if you need local mood records: encrypted backup/export is not\navailable yet. Set up stable private signing credentials before relying on updates.
 EOF
 
 if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then

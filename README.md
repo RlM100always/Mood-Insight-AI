@@ -6,9 +6,9 @@ The actual deliverable is the **native Android/iOS React Native app**, in [mobil
 
 ### [⬇ DOWNLOAD THE NEWEST EXPERIMENTAL APK — GitHub Releases](https://github.com/RlM100always/Mood-Insight-AI/releases)
 
-_Do **not** install the older `05bd547` release expecting deep features. Always choose the newest release with app version `0.3.0` or later. The current build is experimental and a phone runtime test is still required. Back up any existing journal data before uninstalling: uninstalling deletes local data._
+_Do **not** install the older `05bd547` release expecting deep features. Choose a release whose GitHub Actions run passed the full emulator test. v0.3.1 includes runtime fixes. The current build is experimental and a phone runtime test is still required. Back up any existing journal data before uninstalling: uninstalling deletes local data._
 
-Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If the Releases page is empty, wait until the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
+Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If no new APK appears after a change, its feature tests may have failed. Review the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
 
 ### Verified Australian research data and screenshot architecture
 
