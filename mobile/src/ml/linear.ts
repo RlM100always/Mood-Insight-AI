@@ -26,7 +26,7 @@ const FEATURE_ORDER = [
   'high_stress','sleep_x_stress','exercise_x_sleep','wellbeing','recovery'
 ];
 
-function featureVector(entry: Entry): number[] {
+export function featureVector(entry: Entry): number[] {
   const sleep = entry.sleep_hours;
   const exercise = entry.exercise_min;
   const stress = entry.stress;

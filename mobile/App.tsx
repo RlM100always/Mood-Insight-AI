@@ -13,6 +13,9 @@ import {
 import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
 import type {LinearModel} from './src/ml/linear';
 import {predictNextMood,canPredict} from './src/ml/linear';
+import {predictTreeDemo} from './src/ml/trees';
+import type {TreeArtifact} from './src/ml/trees';
+import treeDemo from './src/ml/trees-demo.json';
 import {DEFAULT_PREFERENCES} from './src/deep';
 import type {Preferences} from './src/deep';
 import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
@@ -75,6 +78,7 @@ export default function App() {
   const [ready,setReady] = useState(false);
   const [consented,setConsented] = useState(false);
   const [error,setError] = useState('');
+  const [activeModel,setActiveModel] = useState<'logistic'|'forest'|'tree'>('logistic');
   const [featureError,setFeatureError] = useState('');
   const [diagnosing,setDiagnosing] = useState(false);
   const [diagnosticResult,setDiagnosticResult] = useState('');
@@ -183,9 +187,13 @@ export default function App() {
   const completed = sessions.length;
   const modelPrediction = useMemo(() => {
     if (!canPredict(entries)) return null;
-    try {return predictNextMood(demoModel as LinearModel, [...entries].sort((a,b)=>b.day.localeCompare(a.day))[0]);}
-    catch {return null;}
-  },[entries]);
+    try {
+      const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
+      return activeModel==='logistic'
+        ? predictNextMood(demoModel as LinearModel,latest)
+        : predictTreeDemo(treeDemo as TreeArtifact,latest,activeModel);
+    } catch {return null;}
+  },[entries,activeModel]);
 
   if (!ready) return <SafeAreaView style={s.center}>
     <ActivityIndicator size="large" color={C.primary}/><Text style={s.muted}>Opening your private space…</Text>
@@ -280,7 +288,20 @@ export default function App() {
           </View></Card>
           <Text style={s.h2}>Experimental on-device ML</Text>
           <Card tint={C.peach}>
-            <Text style={s.kicker}>TRAINED LOGISTIC REGRESSION · SYNTHETIC DEMO ONLY</Text>
+            <Text style={s.kicker}>THREE OFFLINE TRAINED MODELS · SYNTHETIC DEMOS ONLY</Text>
+            <View style={s.chipRow}>
+              {([
+                {id:'logistic',label:'Logistic Regression'},
+                {id:'tree',label:'Decision Tree'},
+                {id:'forest',label:'Random Forest'}
+              ] as const).map(choice=><Pressable key={choice.id}
+                accessibilityRole="button" accessibilityLabel={'ML model '+choice.label}
+                onPress={()=>setActiveModel(choice.id)}
+                style={[s.chip,{width:'auto',paddingHorizontal:12},activeModel===choice.id&&s.chipActive]}>
+                <Text style={[s.chipText,activeModel===choice.id&&{color:C.white}]}>{choice.label}</Text>
+              </Pressable>)}
+            </View>
+            <Text style={s.copy}>Logistic Regression: multinomial scikit-learn synthetic demo. Decision Tree: depth 3. Random Forest: 8 shallow trees. None trained or validated on real Australian participants; no model is clinically reliable.</Text>
             {modelPrediction ? <>
               <Text style={s.heroSmall}>Simulated next-day mood: {modelPrediction.predictedMood}/5</Text>
               <Text style={s.copy}>Example model output only. Trained on artificial examples, not real people. It cannot reliably predict your wellbeing and should not inform health decisions.</Text>
@@ -291,7 +312,7 @@ export default function App() {
                 </View>
                 <Text style={[s.small,{width:50,textAlign:'right'}]}>{(p.probability*100).toFixed(0)}%</Text>
               </View>)}
-              <Text style={s.small}>Largest model contribution: {modelPrediction.topFeature}. This is a model coefficient contribution, not a causal explanation.</Text>
+              <Text style={s.small}>{activeModel==='logistic'?'Largest coefficient contribution':'Frequently used decision split'}: {modelPrediction.topFeature}. These are model mechanics, not causal explanations.</Text>
             </> : <Text style={s.copy}>Add at least 7 mood check-ins to enable the offline research demo. Its model is trained only on synthetic examples.</Text>}
           </Card>
           <Text style={s.h2}>Detected associations</Text>
