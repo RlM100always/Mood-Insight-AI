@@ -25,7 +25,7 @@ def export_mobile_model(csv: Path, output: Path):
     if records.target.nunique() < 2:
         raise ValueError("At least two outcome classes required")
     ids = records.participant_id.unique()
-    a, b = next(GroupShuffleSplit(n_splits=1, test_size=.2, random_state=42).split(ids))
+    a, b = next(GroupShuffleSplit(n_splits=1, test_size=.2, random_state=42).split(ids, groups=ids))
     train, test = records[records.participant_id.isin(ids[a])], records[records.participant_id.isin(ids[b])]
     if len(test) < 10 or train.target.nunique() < 2:
         raise ValueError("Insufficient participant-held-out test sample")

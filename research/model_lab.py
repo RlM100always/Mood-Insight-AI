@@ -65,7 +65,7 @@ def run(data,include_synthetic=False):
     ids=real.participant_id.drop_duplicates().to_numpy()
     if len(ids)<10 or real.target.nunique()<2:
         raise ValueError("At least ten consented real participants and two mood classes are required")
-    train_i,test_i=next(GroupShuffleSplit(n_splits=1,test_size=.2,random_state=RANDOM_STATE).split(ids))
+    train_i,test_i=next(GroupShuffleSplit(n_splits=1,test_size=.2,random_state=RANDOM_STATE).split(ids, groups=ids))
     train_ids,test_ids=ids[train_i],ids[test_i]
     results=[evaluate(real,synthetic,train_ids,test_ids)]
     if include_synthetic:
