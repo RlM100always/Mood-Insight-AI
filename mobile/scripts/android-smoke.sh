@@ -105,8 +105,17 @@ echo "ANDROID SMOKE PASS: APK installation, launch, welcome, consent, encrypted 
 find_and_tap "Save private check-in"
 wait_for_text "Saved on your device"
 echo "PASS: new mood entry was accepted by the encrypted database"
-adb shell input keyevent 4
+# Android's Alert.alert has an explicit OK button. The back key may leave
+# this modal open; previous CI failures occurred with the confirmation dialog
+# still occupying the entire accessibility hierarchy.
+find_and_tap "OK"
 sleep 2
+capture
+if grep -Fq 'Saved on your device' window.xml; then
+  echo "FAILED: Save confirmation alert did not dismiss" >&2
+  exit 1
+fi
+echo "PASS: save confirmation dismissed cleanly"
 
 find_and_tap "Journal tab"
 wait_for_text "Your story, your words"
@@ -125,8 +134,15 @@ echo "PASS: previously saved check-in is editable"
 find_and_tap "Privacy tab"
 wait_for_text "Your data. Your choice."
 find_and_tap "Check app features"
-wait_for_text "PASS:"
+# Health output may appear below the fold after encryption/storage checks.
+for attempt in $(seq 1 8); do
+  capture || true
+  if test -s window.xml && grep -Fq 'PASS:' window.xml; then break; fi
+  adb shell input swipe 490 1530 490 720 350 || true
+  sleep 3
+done
+grep -Fq 'PASS:' window.xml || { echo "FAILED: local database health check did not report PASS" >&2; exit 1; }
 echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagnostics"
 
 adb exec-out screencap -p > android-smoke.png
-echo "ANDROID FEATURE E2E PASS: save, journal, edit and encrypted storage health."
+echo "ANDROID FEATURE E2E PASS: save, confirmation dismiss, journal, edit and encrypted storage health."

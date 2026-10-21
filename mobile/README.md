@@ -1,3 +1,11 @@
+## Reliability fixes in 0.3.1
+
+- Android emulator E2E explicitly confirms and dismisses the native save dialog before journal navigation, avoiding a false test failure.
+- Encrypted SQLite opening resets the cached DB handle if an initialization/retention step fails.
+- Daily input rejects future and expired dates (365-day history window) instead of saving entries that immediately disappear or pollute future averages.
+- Activity duration and optional pre-activity mood are validated, while the session timer stops when completed.
+- Version 0.3.1 / Android versionCode 4 is distinct from earlier releases. This is still experimental until complete feature/device checks pass.
+
 # Mood Insight AI — native Android and iOS
 
 React Native + Expo custom native binary (not WebView/PWA).

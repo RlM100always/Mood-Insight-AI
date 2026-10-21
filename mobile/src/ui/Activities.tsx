@@ -29,6 +29,7 @@ export function ActivityExplorer({entries,sessions,preferences,onPreferences,ref
  const select=(item:Detail)=>{setActive(item);setRemaining(item.minutes*60);setRunning(false);};
  const finish=async()=>{
   if(!active||busy)return;
+  setRunning(false);
   setBusy(true);
   try{
    const elapsed=active.minutes*60-remaining;

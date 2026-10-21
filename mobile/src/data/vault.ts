@@ -66,6 +66,9 @@ export async function openVault(): Promise<void> {
     database = candidate;
     await purgeExpired();
   } catch (e) {
+    // Candidate may already have been assigned before purgeExpired throws.
+    // Never leave a closed DB cached as the current unlocked vault.
+    if (database === candidate) database = null;
     await candidate.closeAsync();
     throw e;
   }
@@ -92,6 +95,8 @@ export async function saveEntry(input: EntryInput): Promise<void> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.day) ||
     !Number.isFinite(new Date(input.day + 'T12:00:00').getTime()) ||
     localDay(new Date(input.day + 'T12:00:00')) !== input.day ||
+    input.day > localDay() ||
+    input.day < localDay(new Date(Date.now() - RETENTION_MS)) ||
     !Number.isInteger(input.mood) || input.mood < 1 || input.mood > 5 ||
     !Number.isFinite(input.sleep_hours) || input.sleep_hours < 0 || input.sleep_hours > 24 ||
     !Number.isInteger(input.exercise_min) || input.exercise_min < 0 || input.exercise_min > 600 ||
@@ -99,7 +104,7 @@ export async function saveEntry(input: EntryInput): Promise<void> {
     !Number.isInteger(input.energy) || input.energy < 1 || input.energy > 5 ||
     !Number.isInteger(input.sleep_quality) || input.sleep_quality < 1 || input.sleep_quality > 5 ||
     input.context_tags.length > 250 || input.context_tags.split(',').some(t=>t.length>0&&!CONTEXT_TAGS.some(c=>c===t)) ||
-    input.note.length > 2000) throw new Error('Check input values (sleep 0-24h, exercise 0-600min, mood/stress 1-5).');
+    input.note.length > 2000) throw new Error('Check date (not future/older than 365 days), mood/stress/energy/sleep quality (1–5), sleep (0–24h), activity (0–600min), notes and contexts.');
   const current = Date.now();
   // A day can be edited without increasing the entry count.
   await db().runAsync(
@@ -124,7 +129,7 @@ export async function listSessions(): Promise<Session[]> {
 }
 
 export async function logSession(activityId: string, day: string, durationSeconds=0, moodBefore: number | null=null): Promise<void> {
-  if(!/^[a-z]+$/.test(activityId) || !Number.isFinite(durationSeconds) || durationSeconds<0 || durationSeconds>7200) throw new Error('Invalid activity record.');
+  if(!/^[a-z]+$/.test(activityId) || day !== localDay() || !Number.isFinite(durationSeconds) || durationSeconds<0 || durationSeconds>7200 || (moodBefore!==null && (!Number.isInteger(moodBefore)||moodBefore<1||moodBefore>5))) throw new Error('Invalid activity record.');
   await db().runAsync('INSERT INTO activity_sessions (id,activity_id,day,created_at,helpful,duration_seconds,mood_before,mood_after) VALUES (?,?,?,?,NULL,?,?,NULL)',
     randomHex(16), activityId, day, Date.now(), Math.floor(durationSeconds),moodBefore);
 }

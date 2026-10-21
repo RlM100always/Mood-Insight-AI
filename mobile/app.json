@@ -3,7 +3,7 @@
     "name": "Mood Insight AI",
     "slug": "mood-insight-native",
     "scheme": "moodinsight",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -14,13 +14,14 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         }
-      }
+      },
+      "buildNumber": "4"
     },
     "android": {
       "package": "app.moodinsight.mobile",
       "edgeToEdgeEnabled": true,
       "permissions": [],
-      "versionCode": 3
+      "versionCode": 4
     },
     "plugins": [
       [
