@@ -8,7 +8,7 @@ import {StatusBar} from 'expo-status-bar';
 import type {Activity, Entry, MoodScore, Session} from './src/types';
 import {
   hasConsent, acceptConsent, openVault, listEntries, saveEntry, removeEntry,
-  listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences
+  listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences, checkVaultHealth
 } from './src/data/vault';
 import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
 import type {LinearModel} from './src/ml/linear';
@@ -19,6 +19,7 @@ import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
 import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
 import {ActivityExplorer} from './src/ui/Activities';
 import demoModel from './src/ml/demo-model.json';
+import appConfig from './app.json';
 
 const C = {
   ink: '#19263A', muted: '#637183', bg: '#F6F7F4', white: '#FFFFFF',
@@ -73,6 +74,9 @@ export default function App() {
   const [ready,setReady] = useState(false);
   const [consented,setConsented] = useState(false);
   const [error,setError] = useState('');
+  const [featureError,setFeatureError] = useState('');
+  const [diagnosing,setDiagnosing] = useState(false);
+  const [diagnosticResult,setDiagnosticResult] = useState('');
   const [tab,setTab] = useState<Tab>('Today');
   const [entries,setEntries] = useState<Entry[]>([]);
   const [sessions,setSessions] = useState<Session[]>([]);
@@ -95,6 +99,7 @@ export default function App() {
   };
   const handleError = (cause: unknown) => {
     const message = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
+    setFeatureError(message);
     Alert.alert('Unable to complete',message);
   };
   const boot = async () => {
@@ -112,7 +117,7 @@ export default function App() {
     setSaving(true);
     try {
       await acceptConsent(); await openVault(); await refresh();
-      setConsented(true); setError('');
+      setConsented(true); setError(''); setFeatureError('');
     } catch (cause) {handleError(cause);}
     finally {setSaving(false);}
   };
@@ -124,6 +129,7 @@ export default function App() {
         stress, note:note.trim(),energy,sleep_quality:sleepQuality,context_tags:tags.join(',')
       });
       await refresh();
+      setFeatureError('');
       setNote(''); setDay(localDay());setEnergy(3);setSleepQuality(3);setTags([]);
       Alert.alert('Saved on your device','Your check-in is encrypted in the local database.');
     } catch (cause) {handleError(cause);}
@@ -150,12 +156,26 @@ export default function App() {
         try {
           await eraseEverything();setEntries([]);setSessions([]);
           setConsented(false);setPrivacyAccepted(false);setTab('Today');
-          setNote('');setDay(localDay());setError('');setEnergy(3);setSleepQuality(3);setTags([]);setPreferences(DEFAULT_PREFERENCES);
+          setNote('');setDay(localDay());setError('');setFeatureError('');setDiagnosticResult('');setEnergy(3);setSleepQuality(3);setTags([]);setPreferences(DEFAULT_PREFERENCES);
         } catch(e) {handleError(e);}
       })()}
     ]
   );
-  const persistPreferences = async (p:Preferences) => {await savePreferences(p);setPreferences(p);};
+  const persistPreferences = async (p:Preferences) => {await savePreferences(p);setPreferences(p);setFeatureError('');};
+  const runHealthCheck = async () => {
+    if (diagnosing) return;
+    setDiagnosing(true);setDiagnosticResult('');
+    try {
+      const result = await checkVaultHealth();
+      setFeatureError('');
+      setDiagnosticResult('PASS: '+result.database+'; Journal: '+result.journal+
+        '; Activities: '+result.activities+'; Preferences: '+result.preferences+'. SQLCipher '+result.cipher);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown native database failure';
+      setFeatureError(message);
+      setDiagnosticResult('FAILED: '+message);
+    } finally {setDiagnosing(false);}
+  };
   const activities = useMemo(()=>recommend(entries),[entries]);
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
@@ -202,6 +222,13 @@ export default function App() {
     <View style={s.topBar}><Text style={s.logo}>◡  mood insight</Text><Pill>● ON-DEVICE ONLY</Pill></View>
     <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+        {featureError ? <Card tint="#FFEAE5">
+          <Text style={s.error}>A feature could not complete</Text>
+          <Text style={s.copy}>{featureError}</Text>
+          <Pressable accessibilityRole="button" onPress={()=>setFeatureError('')}>
+            <Text style={{color:C.primary,fontWeight:'800'}}>Dismiss message</Text>
+          </Pressable>
+        </Card> : null}
         {tab==='Today'? <>
           <Heading kicker="Daily check-in" title="How are you feeling?" description="There is no right answer. Take a moment for yourself."/>
           <Card tint={C.teal}><Text style={s.kicker}>YOUR WEEK SO FAR</Text>
@@ -295,6 +322,13 @@ export default function App() {
           <Heading kicker="Data control" title="Your data. Your choice." description="A simple privacy promise you can verify."/>
           <Card tint={C.teal}><Text style={s.h3}>Encrypted on your phone</Text>
             <Text style={s.copy}>Native SQLCipher SQLite encrypts entries using AES-256. Your randomly generated database key is held by platform SecureStore. The app does not call any mood-data API or collect telemetry.</Text>
+          </Card>
+          <Card>
+            <Text style={s.h3}>Run native feature diagnostics</Text>
+            <Text style={s.copy}>Check encrypted storage, read/write, journal, activity records and preferences without deleting your data. No diagnostics are uploaded.</Text>
+            <Primary label={diagnosing?'Checking local database…':'Check app features'} disabled={diagnosing} action={()=>void runHealthCheck()}/>
+            {diagnosticResult ? <Text selectable style={[s.copy,{color:diagnosticResult.startsWith('PASS')?C.primary:C.red}]}>{diagnosticResult}</Text> : null}
+            <Text style={s.footnote}>App version: {appConfig.expo.version}. If a check fails, share only the error text (not private notes).</Text>
           </Card>
           <Card><Text style={s.h3}>12-month retention</Text>
             <Text style={s.copy}>Entries older than 365 days are automatically purged whenever the encrypted vault is opened or used. The app does not run a background deletion task while closed.</Text>
