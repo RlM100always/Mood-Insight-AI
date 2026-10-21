@@ -1,27 +1,34 @@
-# Mood Insight AI — React Native mobile application
+# Mood Insight AI — React Native native Android/iOS app
 
-The primary project is the **native React Native Android/iOS app** at **[`mobile/`](mobile/README.md)**.
+This GitHub repository is for a **real native mobile application**, not a website, PWA, or WebView.
 
-- React Native 0.88 / Expo SDK 58 custom native build; **not a website or WebView**
-- Native SQLCipher SQLite AES-256 database with key in OS SecureStore
-- Daily mood/sleep/exercise/stress journal, history, patterns and explained top-three wellbeing activities
-- Local-only storage, no personal-data API, consent and user-controlled deletion
-- Privacy-first, non-clinical educational prototype
+## App
+The React Native app lives in [mobile/](mobile/README.md) and uses React Native + Expo custom native builds with native SQLCipher/SQLite and OS SecureStore.
 
-### Quick start
+- Daily mood, sleep, exercise, and stress logging
+- Encrypted local journal, entry editing and deletion
+- Charts and explainable mood pattern comparisons
+- Three contextual wellbeing activities, difficulty and duration, feedback
+- Consent, data-retention controls and full deletion
+- No accounts, cloud mood uploads or app analytics
+
+### Android developer setup
 ```bash
 cd mobile
 npm install
 npx expo run:android
 ```
 
-For an Android APK, see the **Native Android APK** GitHub Actions workflow artifacts after the build succeeds. iOS requires Xcode/macOS or EAS Build. SQLCipher does not work inside Expo Go; build a native binary.
+Use the [Native Android APK workflow](.github/workflows/native-android.yml) to build an installable APK. A successful GitHub Actions artifact upload is required before an APK download exists.
 
-### Research & limitations
-The `research/` directory contains a Python comparison workflow for Random Forest, Decision Tree, Logistic Regression and a neural-network baseline, using authentic *consented* local input CSVs; no real dataset or trained ML artifact has been uploaded. Current native activity guidance is heuristic and pattern-based, **not a trained model's accuracy-validated predictions**.
+The React Native source tests are in [React Native checks](.github/workflows/native-mobile-ci.yml).
 
-The older static-web experiment remains in root files (`index.html`, `app.js`, `styles.css`), for historical reference only. **It is not the requested deliverable.**
+### iOS
+Requires macOS and Xcode or an authenticated EAS iOS cloud build.
 
-The proposal's >=80% accuracy, users preferring explanations, performance and privacy validation need real testing; no fabricated results. Integrating the native module into an existing Mood Buster app requires its source code.
+## Machine learning research
+The [research/](research/) directory contains scikit-learn model training and comparison (Random Forest, Decision Tree, Logistic Regression, neural network baseline). **The native app currently uses transparent descriptive patterns, not a deployed trained ML model.** No accuracy results are claimed without real, consented evaluations.
 
-This tool is not a substitute for professional mental healthcare or emergency support.
+The proposed integration into an existing Mood Buster source app requires its code, which is not part of this repository. The native app is a standalone implementation.
+
+Wellbeing education only: not diagnosis, medical treatment, or emergency response.
