@@ -18,6 +18,7 @@ import type {Preferences} from './src/deep';
 import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
 import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
 import {ActivityExplorer} from './src/ui/Activities';
+import {ResearchApiBridge} from './src/ui/BackendLab';
 import demoModel from './src/ml/demo-model.json';
 import appConfig from './app.json';
 
@@ -330,6 +331,7 @@ export default function App() {
             {diagnosticResult ? <Text selectable style={[s.copy,{color:diagnosticResult.startsWith('PASS')?C.primary:C.red}]}>{diagnosticResult}</Text> : null}
             <Text style={s.footnote}>App version: {appConfig.expo.version}. If a check fails, share only the error text (not private notes).</Text>
           </Card>
+          <ResearchApiBridge entries={entries}/>
           <Card><Text style={s.h3}>12-month retention</Text>
             <Text style={s.copy}>Entries older than 365 days are automatically purged whenever the encrypted vault is opened or used. The app does not run a background deletion task while closed.</Text>
             <Text style={s.h3}>No medical claims</Text>

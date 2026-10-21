@@ -10,6 +10,12 @@ _Do **not** install the older `05bd547` release expecting deep features. Always 
 
 Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If the Releases page is empty, wait until the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
 
+### Verified Australian research data and screenshot architecture
+
+[Architecture implementation and limitations](ARCHITECTURE_IMPLEMENTATION.md) · [Australian ABS source and data details](research/AUSTRALIAN_DATA.md) · [Optional encrypted Flask API](backend/README.md)
+
+The native Patterns screen now includes an offline explorer for **real ABS 2020–2022 Australian mental-health population data**. These published population proportions are not valid individual next-day mood prediction training labels. The optional self-hosted Flask API implements account, mood log, history, recommendations, activity feedback and progress routes. It is **not automatically connected** and private notes are not uploaded. The optional HTTPS bridge is under Privacy.
+
 ### Implemented
 - Native screens: mood, sleep, stress and exercise logging, journal, trends, explanations, activities, privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore

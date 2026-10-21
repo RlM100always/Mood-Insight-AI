@@ -253,9 +253,7 @@ def create_app(config: dict | None = None) -> Flask:
     @bearer
     def recommendations():
         try:
-            payload=body()
-            payload["day"]=date.today().isoformat()
-            value=valid_mood(payload)
+            value=valid_mood(dict(day=str(date.today()),**body()))
         except ValueError as exc:
             return jsonify(error=str(exc)),400
         choices=[

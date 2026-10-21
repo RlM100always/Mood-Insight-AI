@@ -2,6 +2,14 @@
 
 React Native + Expo custom native binary (not WebView/PWA).
 
+## Architecture and verified Australian data
+
+The Patterns screen contains an **Australian research evidence** view built from ABS's published National Study of Mental Health and Wellbeing (2020–2022), with 7 age groups, male/female/all-person comparison, source link and methodological cautions.
+
+The Privacy screen includes an **optional HTTPS Flask API bridge**: health/model-info checks, user registration/login, single-entry opt-in numerical log forwarding, optional rule-based Flask recommendations and 14-day remote history. The app works offline without this server; journals and notes are not automatically sent. A physical-device backend needs a self-hosted HTTPS deployment, not just a localhost Flask process.
+
+See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](../backend/README.md) and [dataset provenance](../research/AUSTRALIAN_DATA.md).
+
 ## Advanced app features
 
 - **Deeper mood check-ins:** 1–5 mood, stress, energy, sleep quality, sleep hours, exercise minutes, context tags and optional journal notes; edit old entries without losing existing records.
