@@ -99,3 +99,34 @@ echo "PASS: consent saved, SQLCipher initialized and dashboard rendered"
 adb exec-out screencap -p > android-smoke.png
 test -s android-smoke.png
 echo "ANDROID SMOKE PASS: APK installation, launch, welcome, consent, encrypted vault, dashboard."
+
+# End-to-end feature checks on a fresh disposable emulator.
+# These assertions create only a synthetic entry inside the temporary test device.
+find_and_tap "Save private check-in"
+wait_for_text "Saved on your device"
+echo "PASS: new mood entry was accepted by the encrypted database"
+adb shell input keyevent 4
+sleep 2
+
+find_and_tap "Journal tab"
+wait_for_text "Your story, your words"
+# New check-in means the journal list must contain a nonempty record, not the empty state.
+capture
+if grep -Fq 'No entries match' window.xml; then
+  echo "FAILED: journal is empty after saving a mood entry" >&2
+  exit 1
+fi
+echo "PASS: journal navigation and saved entry rendered"
+
+find_and_tap "Edit"
+wait_for_text "How are you feeling?"
+echo "PASS: previously saved check-in is editable"
+
+find_and_tap "Privacy tab"
+wait_for_text "Your data. Your choice."
+find_and_tap "Check app features"
+wait_for_text "PASS:"
+echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagnostics"
+
+adb exec-out screencap -p > android-smoke.png
+echo "ANDROID FEATURE E2E PASS: save, journal, edit and encrypted storage health."
