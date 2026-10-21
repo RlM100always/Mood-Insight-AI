@@ -1,6 +1,6 @@
 import type {Entry} from '../types';
-import {featureVector} from './linear';
-import type {Inference} from './linear';
+import {featureVector} from './linear.ts';
+import type {Inference} from './linear.ts';
 
 export type TreeNode = [number,number,number,number,number[]];
 export type TreeArtifact = {
