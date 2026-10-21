@@ -28,6 +28,12 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 - **Experimental on-device ML:** local trained logistic regression probability display on the Patterns screen, clearly labelled as trained on synthetic data, not validated for real health predictions.
 - **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Old recordings are migrated with default values for new optional measurements.
 
+## Android feature E2E test coverage
+
+The GitHub emulator workflow tests the **actual native APK**: startup, consent and SQLCipher unlock, mood save, confirmation handling, Journal display/edit, persistence across a force-stop/restart, guided activity completion and feedback, Progress screen and encrypted local database health. A failed step makes the workflow fail; it is NOT a reason to remove the assertion.
+
+iOS CI currently covers native compilation, simulator installation and launch; identical full interaction coverage on iOS and both physical platforms remains pending.
+
 ## Validation
 - GitHub Actions: React Native typecheck, feature/inference tests and Android JS bundle.
 - GitHub Actions Android: prebuild, release APK, Android emulator launch, consent and encrypted database setup smoke.

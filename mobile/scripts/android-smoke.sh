@@ -131,6 +131,36 @@ find_and_tap "Edit"
 wait_for_text "How are you feeling?"
 echo "PASS: previously saved check-in is editable"
 
+# Verify SQLCipher persistence after the native process is fully stopped.
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MainActivity"
+wait_for_text "How are you feeling?"
+find_and_tap "Journal tab"
+wait_for_text "Your story, your words"
+capture
+if grep -Fq 'No entries match' window.xml; then
+  echo "FAILED: saved check-in was lost after app restart" >&2
+  exit 1
+fi
+echo "PASS: encrypted journal survives a full app process restart"
+
+# Exercise a real guided activity and feedback workflow.
+find_and_tap "Activities tab"
+wait_for_text "Your three recommended activities"
+find_and_tap "See guided steps"
+wait_for_text "A simple step-by-step guide"
+find_and_tap "I completed or tried this"
+wait_for_text "Saved locally"
+find_and_tap "OK"
+echo "PASS: guided activity completion was stored"
+find_and_tap "👍 Helpful"
+sleep 2
+echo "PASS: activity feedback control accepted a tap"
+
+find_and_tap "Progress tab"
+wait_for_text "Your wellbeing journey"
+echo "PASS: Progress screen and activity goals rendered"
+
 find_and_tap "Privacy tab"
 wait_for_text "Your data. Your choice."
 find_and_tap "Check app features"
@@ -145,4 +175,4 @@ grep -Fq 'PASS:' window.xml || { echo "FAILED: local database health check did n
 echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagnostics"
 
 adb exec-out screencap -p > android-smoke.png
-echo "ANDROID FEATURE E2E PASS: save, confirmation dismiss, journal, edit and encrypted storage health."
+echo "ANDROID FEATURE E2E PASS: save, dialog dismiss, encrypted restart persistence, journal edit, guided activity, feedback, progress and storage diagnostics."
