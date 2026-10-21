@@ -1,4 +1,4 @@
-name: Native Android APK
+name: Native Android APK and emulator smoke
 on:
   workflow_dispatch:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: mobile
@@ -26,7 +26,7 @@ jobs:
           java-version: '17'
       - run: npm install --no-audit --no-fund
       - run: npx expo prebuild --platform android --no-install --non-interactive
-      - name: Build installable release APK
+      - name: Build native release APK
         run: |
           chmod +x android/gradlew
           cd android
@@ -36,3 +36,31 @@ jobs:
           name: mood-insight-android-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+  android-emulator-smoke:
+    needs: build-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mood-insight-android-apk
+          path: apk
+      - name: Boot Android emulator and test native app launch + consent
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-boot-timeout: 900
+          disable-animations: true
+          script: bash mobile/scripts/android-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-emulator-screenshot
+          path: android-smoke.png
+          if-no-files-found: ignore

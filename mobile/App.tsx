@@ -11,6 +11,9 @@ import {
   listSessions, logSession, rateSession, eraseEverything
 } from './src/data/vault';
 import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
+import type {LinearModel} from './src/ml/linear';
+import {predictNextMood,canPredict} from './src/ml/linear';
+import demoModel from './src/ml/demo-model.json';
 
 const C = {
   ink: '#19263A', muted: '#637183', bg: '#F6F7F4', white: '#FFFFFF',
@@ -146,6 +149,11 @@ export default function App() {
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
+  const modelPrediction = useMemo(() => {
+    if (!canPredict(entries)) return null;
+    try {return predictNextMood(demoModel as LinearModel, [...entries].sort((a,b)=>b.day.localeCompare(a.day))[0]);}
+    catch {return null;}
+  },[entries]);
 
   if (!ready) return <SafeAreaView style={s.center}>
     <ActivityIndicator size="large" color={C.primary}/><Text style={s.muted}>Opening your private space…</Text>
@@ -230,6 +238,22 @@ export default function App() {
               <Text style={s.chartDay}>{new Date(e.day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})}</Text>
             </View>) : <Text style={s.copy}>Your trend will appear after your first check-in.</Text>}
           </View></Card>
+          <Text style={s.h2}>Experimental on-device ML</Text>
+          <Card tint={C.peach}>
+            <Text style={s.kicker}>TRAINED LOGISTIC REGRESSION · SYNTHETIC DEMO ONLY</Text>
+            {modelPrediction ? <>
+              <Text style={s.heroSmall}>Simulated next-day mood: {modelPrediction.predictedMood}/5</Text>
+              <Text style={s.copy}>Example model output only. Trained on artificial examples, not real people. It cannot reliably predict your wellbeing and should not inform health decisions.</Text>
+              {modelPrediction.probabilities.map(p=><View key={p.mood} style={s.sessionRow}>
+                <Text style={[s.small,{width:68}]}>Mood {p.mood}</Text>
+                <View style={{flex:1,height:9,backgroundColor:'#EDE6DE',borderRadius:10}}>
+                  <View style={{width:((p.probability*100).toFixed(1)+'%') as `${number}%`,height:9,backgroundColor:C.primary,borderRadius:10}}/>
+                </View>
+                <Text style={[s.small,{width:50,textAlign:'right'}]}>{(p.probability*100).toFixed(0)}%</Text>
+              </View>)}
+              <Text style={s.small}>Largest model contribution: {modelPrediction.topFeature}. This is a model coefficient contribution, not a causal explanation.</Text>
+            </> : <Text style={s.copy}>Add at least 7 mood check-ins to enable the offline research demo. Its model is trained only on synthetic examples.</Text>}
+          </Card>
           <Text style={s.h2}>Detected associations</Text>
           {patterns.length?patterns.map((p,i)=><Card key={p.id} tint={i%2===0?C.teal:C.peach}>
             <Text style={s.kicker}>{p.count} DAYS COMPARED</Text>

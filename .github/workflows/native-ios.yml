@@ -1,0 +1,52 @@
+name: Native iOS simulator smoke
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/native-ios.yml'
+jobs:
+  ios-simulator:
+    runs-on: macos-15
+    timeout-minutes: 65
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx expo prebuild --platform ios --no-install --non-interactive
+      - name: Install native CocoaPods
+        run: cd ios && pod install
+      - name: Compile for iOS simulator
+        run: |
+          cd ios
+          workspace=$(find . -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+          scheme=$(basename "$workspace" .xcworkspace)
+          xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Boot simulator and launch app
+        run: |
+          sim=$(xcrun simctl list devices available --json | python3 -c "import sys,json; d=json.load(sys.stdin); print(next(x['udid'] for xs in d['devices'].values() for x in xs if 'iPhone' in x['name']))")
+          xcrun simctl boot "$sim"
+          xcrun simctl bootstatus "$sim" -b
+          app=$(find ios/build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
+          test -n "$app"
+          xcrun simctl install booted "$app"
+          xcrun simctl launch booted app.moodinsight.mobile
+          sleep 15
+          xcrun simctl io booted screenshot ios-smoke.png
+          test -s ios-smoke.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-screenshot
+          path: mobile/ios-smoke.png
+          if-no-files-found: ignore

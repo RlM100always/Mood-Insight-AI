@@ -1,34 +1,18 @@
-# Mood Insight AI — React Native native Android/iOS app
+# Mood Insight AI — React Native mobile project
 
-This GitHub repository is for a **real native mobile application**, not a website, PWA, or WebView.
+The actual deliverable is the **native Android/iOS React Native app**, in [mobile/](mobile/README.md). It is not a website, WebView or PWA.
 
-## App
-The React Native app lives in [mobile/](mobile/README.md) and uses React Native + Expo custom native builds with native SQLCipher/SQLite and OS SecureStore.
+### Implemented
+- Native screens: mood, sleep, stress and exercise logging, journal, trends, explanations, activities, privacy controls
+- SQLCipher encrypted on-device SQLite + OS SecureStore
+- Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
+- **Trained ML pipeline**: scikit-learn logistic regression model fitted to explicitly synthetic demo data; fixed model weights bundled and executed fully on-device. The demo is **not** validated or clinically meaningful.
+- Exporter to fit the same ML runtime from authentic consented research data, plus Random Forest/Decision Tree/Logistic Regression/MLP research comparison scripts
 
-- Daily mood, sleep, exercise, and stress logging
-- Encrypted local journal, entry editing and deletion
-- Charts and explainable mood pattern comparisons
-- Three contextual wellbeing activities, difficulty and duration, feedback
-- Consent, data-retention controls and full deletion
-- No accounts, cloud mood uploads or app analytics
+### Build / test
+See [mobile/README.md](mobile/README.md). The Android APK and iOS simulator workflows are under [.github/workflows](.github/workflows). Build/test success must be confirmed in GitHub Actions; emulator/simulator are not physical-device verification.
 
-### Android developer setup
-```bash
-cd mobile
-npm install
-npx expo run:android
-```
+### Outstanding
+Real participant dataset and ethical approval, evaluation against actual participant-held-out mood logs, physical Android/iPhone testing, real Mood Buster source integration and app store publication. No fabricated model accuracies or user-study findings.
 
-Use the [Native Android APK workflow](.github/workflows/native-android.yml) to build an installable APK. A successful GitHub Actions artifact upload is required before an APK download exists.
-
-The React Native source tests are in [React Native checks](.github/workflows/native-mobile-ci.yml).
-
-### iOS
-Requires macOS and Xcode or an authenticated EAS iOS cloud build.
-
-## Machine learning research
-The [research/](research/) directory contains scikit-learn model training and comparison (Random Forest, Decision Tree, Logistic Regression, neural network baseline). **The native app currently uses transparent descriptive patterns, not a deployed trained ML model.** No accuracy results are claimed without real, consented evaluations.
-
-The proposed integration into an existing Mood Buster source app requires its code, which is not part of this repository. The native app is a standalone implementation.
-
-Wellbeing education only: not diagnosis, medical treatment, or emergency response.
+Non-clinical educational tool. Not a replacement for health professionals or emergency services.
