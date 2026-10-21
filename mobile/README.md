@@ -18,6 +18,17 @@ React Native + Expo custom native binary (not WebView/PWA).
 - GitHub Actions iOS: prebuild, CocoaPods, Xcode simulator binary build, simulator install/launch screenshot smoke.
 - **Simulator smoke tests do not replace physical Android/iPhone testing.** No physical device is connected to this service.
 
+## Download Android APK (no Android Studio needed)
+
+**[⬇ GitHub Releases — Mood-Insight-AI.apk](https://github.com/RlM100always/Mood-Insight-AI/releases)**
+
+1. Open GitHub **Releases** and select the newest **Android experimental APK** release.
+2. Under **Assets**, tap **Mood-Insight-AI.apk**. The APK downloads directly, without a ZIP.
+3. Open the downloaded file on your Android device and follow its install prompts.
+4. This is an **experimental/unverified** test build. Do not use real sensitive mood data until runtime and encryption tests succeed. iPhones cannot install Android APKs.
+
+APK files publish automatically through the [Publish Android APK workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) after compilation artifacts are available. Historical Actions ZIP artifacts are still retained separately.
+
 ## Run Android (Windows)
 Requires Node.js 22+, JDK 17, Android SDK/Studio, connected phone with USB debugging or emulator.
 

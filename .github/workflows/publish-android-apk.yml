@@ -1,0 +1,43 @@
+name: Publish Android APK to GitHub Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Optional Android build run ID (leave blank to use newest available APK)'
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-android-apk.yml'
+      - 'scripts/publish-android-apk.sh'
+  workflow_run:
+    workflows:
+      - Native Android APK and emulator smoke
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-android-apk
+  cancel-in-progress: false
+
+jobs:
+  publish-experimental-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id || '' }}
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish already-built APK as an experimental GitHub Release
+        run: bash scripts/publish-android-apk.sh

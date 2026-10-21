@@ -2,6 +2,12 @@
 
 The actual deliverable is the **native Android/iOS React Native app**, in [mobile/](mobile/README.md). It is not a website, WebView or PWA.
 
+## <a href="https://github.com/RlM100always/Mood-Insight-AI/releases">📱 Download Android APK — GitHub Releases</a>
+
+**[⬇ Download experimental Android APK](https://github.com/RlM100always/Mood-Insight-AI/releases)**
+
+Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If the Releases page is empty, wait until the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
+
 ### Implemented
 - Native screens: mood, sleep, stress and exercise logging, journal, trends, explanations, activities, privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore
