@@ -1,4 +1,5 @@
 import React from 'react';
+import {AustralianEvidence} from './AustralianEvidence';
 import {Alert,Text,View} from 'react-native';
 import type {Entry,Session} from '../types';
 import type {Preferences} from '../deep';
@@ -43,6 +44,8 @@ export function InsightExplorer({entries,sessions}: {entries:Entry[];sessions:Se
   <Text style={st.body}>Mood averaged {x.withAvg.toFixed(1)}/5 on {x.withCount} tagged days versus {x.otherAvg.toFixed(1)}/5 on {x.otherCount} other days.</Text>
   <Text style={st.sub}>Observed difference {(x.diff>0?'+':'')+x.diff.toFixed(1)} points. An association, not a cause.</Text>
  </Panel>):<Panel><Text style={st.body}>At least three tagged days and three comparison days are needed before a context pattern appears. Keep logging naturally.</Text></Panel>}
+ <Heading>Australian research evidence</Heading>
+ <AustralianEvidence/>
  </View>;
 }
 export function ProgressExplorer({entries,sessions,preferences,onPreferences}:{

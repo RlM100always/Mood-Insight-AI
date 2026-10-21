@@ -1,0 +1,87 @@
+{
+  "dataset_id": "ABS_NSMHW_2020_2022",
+  "title": "National Study of Mental Health and Wellbeing, 2020–2022",
+  "publisher": "Australian Bureau of Statistics",
+  "country": "Australia",
+  "source_url": "https://www.abs.gov.au/statistics/health/mental-health/national-study-mental-health-and-wellbeing/2020-2022",
+  "source_table_1": "12-month mental disorders, by age and sex, 2020–2022",
+  "source_table_2": "12-month mental disorders, by disorder group and sex, 2020–2022",
+  "unit": "percent_of_population",
+  "indicator": "Any mental disorder in previous 12 months (NOT a 1–5 daily mood measure)",
+  "survey_period": "2020–2022",
+  "data_type": "Publicly published aggregate, not participant-level microdata",
+  "unsuitable_for": [
+    "training individual daily mood model",
+    "inferring user's diagnosis",
+    "estimating effect of specific exercises",
+    "merging with synthetic records"
+  ],
+  "age_groups": [
+    {
+      "age": "16–24",
+      "male": 32.4,
+      "female": 45.5,
+      "persons": 38.8
+    },
+    {
+      "age": "25–34",
+      "male": 22.8,
+      "female": 29.6,
+      "persons": 26.3
+    },
+    {
+      "age": "35–44",
+      "male": 16.7,
+      "female": 23.8,
+      "persons": 20.3
+    },
+    {
+      "age": "45–54",
+      "male": 16.5,
+      "female": 24,
+      "persons": 20.2
+    },
+    {
+      "age": "55–64",
+      "male": 16,
+      "female": 19.6,
+      "persons": 17.9
+    },
+    {
+      "age": "65–74",
+      "male": 9.6,
+      "female": 13.8,
+      "persons": 11.9
+    },
+    {
+      "age": "75–85",
+      "male": 4.9,
+      "female": 6.1,
+      "persons": 5.4
+    }
+  ],
+  "disorder_groups": [
+    {
+      "group": "Anxiety disorders",
+      "male": 13.3,
+      "female": 21.1
+    },
+    {
+      "group": "Affective disorders",
+      "male": 6.5,
+      "female": 8.6
+    },
+    {
+      "group": "Substance use disorders",
+      "male": 4.4,
+      "female": 2.1
+    },
+    {
+      "group": "Any disorder",
+      "male": 18.3,
+      "female": 24.6
+    }
+  ],
+  "notes": "Official published population proportions; sampling error, measurement differences and survey definitions apply. They must not be interpreted as personal risk or prediction accuracy.",
+  "provenance_checked": "2026-10-21"
+}
