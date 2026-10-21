@@ -50,6 +50,35 @@ export function AustralianEvidence(){
       </View>)}
       <Text style={st.sub}>These categories overlap. Do not add the percentages or treat them as daily mood levels.</Text>
     </Panel>
+    <Heading>Australian physical activity and sleep</Heading>
+    <Panel tint={colors.soft}>
+      <Text style={st.title}>Official ABS National Health Survey (2022)</Text>
+      <Text style={st.body}>23.9% of Australians aged 15+ met the physical activity guidelines. Among adults aged 18–64, 77.6% did not meet their age-specific guidelines.</Text>
+      <Text style={st.sub}>Many adults reported physical activity without meeting every guideline criterion; these are population estimates, not a target automatically prescribed for an individual.</Text>
+      <Pressable accessibilityRole="button"
+        onPress={()=>void Linking.openURL(abs.other_australian_datasets[0].url)}>
+        <Text style={{color:colors.main,fontWeight:'800'}}>ABS Physical Activity 2022 — source ↗</Text>
+      </Pressable>
+    </Panel>
+    <Panel>
+      <Text style={st.title}>Accelerometer-measured sleep & movement (2023)</Text>
+      <View style={{flexDirection:'row',gap:7}}>
+        <View style={{flex:1,gap:6}}>
+          <Text style={{fontSize:24,fontWeight:'900',color:colors.main}}>7h 36m</Text>
+          <Text style={st.sub}>Average adult sleep per night</Text>
+        </View>
+        <View style={{flex:1,gap:6}}>
+          <Text style={{fontSize:24,fontWeight:'900',color:colors.main}}>9,065</Text>
+          <Text style={st.sub}>Average adult steps per day</Text>
+        </View>
+      </View>
+      <Text style={st.body}>9.1% of the adult volunteer group averaged less than six hours' sleep; 62.5% averaged seven to less than nine hours.</Text>
+      <Text style={st.sub}>This study measured people who volunteered to wear a device. Population averages should not be interpreted as your personal health target.</Text>
+      <Pressable accessibilityRole="button"
+        onPress={()=>void Linking.openURL(abs.other_australian_datasets[1].url)}>
+        <Text style={{color:colors.main,fontWeight:'800'}}>ABS Measured Sleep & Activity 2023 — source ↗</Text>
+      </Pressable>
+    </Panel>
     <Pressable accessibilityRole="button" style={st.button}
       onPress={()=>void Linking.openURL(abs.source_url)}>
       <Text style={st.buttonText}>Open official ABS source ↗</Text>

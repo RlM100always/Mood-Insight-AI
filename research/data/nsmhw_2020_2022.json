@@ -83,5 +83,93 @@
     }
   ],
   "notes": "Official published population proportions; sampling error, measurement differences and survey definitions apply. They must not be interpreted as personal risk or prediction accuracy.",
-  "provenance_checked": "2026-10-21"
+  "provenance_checked": "2026-10-21",
+  "other_australian_datasets": [
+    {
+      "id": "ABS_NHS_PHYSICAL_ACTIVITY_2022",
+      "title": "Physical activity, 2022",
+      "publisher": "Australian Bureau of Statistics",
+      "survey": "National Health Survey 2022",
+      "url": "https://www.abs.gov.au/statistics/health/health-conditions-and-risks/physical-activity/2022",
+      "year": 2022,
+      "statistics": [
+        {
+          "key": "met_guideline",
+          "label": "People aged 15+ meeting physical activity guidelines",
+          "percentage": 23.9,
+          "population": "Australians aged 15 and over"
+        },
+        {
+          "key": "aged_18_64_not_met",
+          "label": "Adults aged 18–64 not meeting the guideline",
+          "percentage": 77.6,
+          "population": "Australians aged 18–64"
+        },
+        {
+          "key": "aged_18_64_some_150",
+          "label": "Adults aged 18–64 doing at least 150 minutes per week",
+          "percentage": 74.2,
+          "population": "Australians aged 18–64"
+        },
+        {
+          "key": "aged_65_met",
+          "label": "Adults aged 65+ meeting activity guidelines",
+          "percentage": 33.4,
+          "population": "Australians aged 65 and over"
+        }
+      ],
+      "notes": "Different guideline definitions apply to different ages; being active for 150 minutes does not alone mean meeting all guideline criteria. Aggregate survey, not any individual's daily exercise history."
+    },
+    {
+      "id": "ABS_NNPAS_MEASURED_SLEEP_ACTIVITY_2023",
+      "title": "Measured physical activity and sleep, 2023",
+      "publisher": "Australian Bureau of Statistics",
+      "survey": "National Nutrition and Physical Activity Survey 2023",
+      "url": "https://www.abs.gov.au/statistics/health/health-conditions-and-risks/measured-physical-activity-and-sleep/2023",
+      "year": 2023,
+      "sample": "Volunteers who wore accelerometers, not the full population or app users.",
+      "statistics": [
+        {
+          "key": "average_sleep_min",
+          "label": "Average nightly sleep",
+          "minutes": 456,
+          "display": "7 h 36 min",
+          "population": "Adult accelerometer volunteers"
+        },
+        {
+          "key": "under_6_hours",
+          "label": "Adults averaging less than 6 hours' sleep",
+          "percentage": 9.1,
+          "population": "Adult accelerometer volunteers"
+        },
+        {
+          "key": "seven_to_nine",
+          "label": "Adults averaging 7 to less than 9 hours",
+          "percentage": 62.5,
+          "population": "Adult accelerometer volunteers"
+        },
+        {
+          "key": "steps",
+          "label": "Average adult steps per day",
+          "steps": 9065,
+          "population": "Adult accelerometer volunteers"
+        },
+        {
+          "key": "active_minutes",
+          "label": "Average time per day being active",
+          "minutes": 266,
+          "display": "4 h 26 min",
+          "population": "Adult accelerometer volunteers"
+        },
+        {
+          "key": "inactive_minutes",
+          "label": "Average time per day inactive",
+          "minutes": 714,
+          "display": "11 h 54 min",
+          "population": "Adult accelerometer volunteers"
+        }
+      ],
+      "notes": "Only respondents volunteering to wear an accelerometer were measured (39.3% of in-scope respondents aged 5+). These device-based measures differ from self-reported hours, and may not generalise to individuals."
+    }
+  ]
 }
