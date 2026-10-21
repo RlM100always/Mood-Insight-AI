@@ -61,6 +61,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-emulator-screenshot
-          path: android-smoke.png
+          name: android-emulator-diagnostics
+          path: |
+            android-smoke.png
+            android-diagnostics.txt
+            window.xml
           if-no-files-found: ignore
