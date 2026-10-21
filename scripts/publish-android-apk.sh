@@ -91,7 +91,7 @@ if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
 else
   gh release create "$tag" ./Mood-Insight-AI.apk \
     --repo "$REPO" \
-    --target "$SOURCE_SHA" \
+    --target main \
     --title "Android experimental APK — ${SOURCE_SHA:0:12}" \
     --notes-file release-notes.md \
     --prerelease
