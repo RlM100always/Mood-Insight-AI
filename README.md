@@ -4,7 +4,9 @@ The actual deliverable is the **native Android/iOS React Native app**, in [mobil
 
 ## <a href="https://github.com/RlM100always/Mood-Insight-AI/releases">📱 Download Android APK — GitHub Releases</a>
 
-**[⬇ Download experimental Android APK](https://github.com/RlM100always/Mood-Insight-AI/releases)**
+### [⬇ DOWNLOAD APK — direct Android install file](https://github.com/RlM100always/Mood-Insight-AI/releases/download/android-experimental-05bd54751c24/Mood-Insight-AI.apk)
+
+_Experimental build from commit `05bd54751c24`. For newer APKs, open the [Releases page](https://github.com/RlM100always/Mood-Insight-AI/releases)._
 
 Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If the Releases page is empty, wait until the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
 
