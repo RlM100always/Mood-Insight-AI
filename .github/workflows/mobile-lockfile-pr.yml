@@ -40,4 +40,3 @@ jobs:
             This automated PR adds the npm lockfile generated from mobile/package.json.
             Please review the dependency tree and the dependency-audit results before merging.
             The lockfile improves repeatability; it does not itself remediate any advisory.
-          labels: dependencies
