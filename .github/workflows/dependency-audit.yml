@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout --kill-after=5s 120s npm audit --json > npm-audit.json
+          timeout --kill-after=5s 300s npm audit --json > npm-audit.json
           audit_status=$?
           set -e
           if [[ "$audit_status" -eq 124 ]]; then
@@ -75,8 +75,10 @@ jobs:
       - name: Audit backend Python dependencies
         run: pip-audit -r backend/requirements.txt
       - name: Audit research Python dependencies
+        if: always()
         run: pip-audit -r research/requirements.txt
       - name: Enforce mobile dependency audit threshold
+        if: always()
         working-directory: mobile
         run: |
           node - <<'NODE'

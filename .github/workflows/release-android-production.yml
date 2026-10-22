@@ -54,6 +54,9 @@ jobs:
       - name: Install JavaScript dependencies
         working-directory: mobile
         run: npm install --no-audit --no-fund
+      - name: Audit mobile dependencies before production build
+        working-directory: mobile
+        run: npm audit --audit-level=high
       - name: Typecheck, test and bundle
         working-directory: mobile
         run: |

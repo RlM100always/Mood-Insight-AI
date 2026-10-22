@@ -13,7 +13,9 @@
 
 ## Remaining release blockers
 
-1. Stable Android signing secrets must be created and configured privately by the repository owner. Never commit a keystore or password.
+1. **Unresolved high-severity transitive npm advisories.** The npm audit report traces the Expo/Metro build dependency tree to `braces` versions through 3.0.3 (GHSA-vfj7-8cjw-p6xm) and `node-forge` versions through 1.4.0 (GHSA-86w9-cpqp-85rv). Attempts to pin braces 3.0.4 and node-forge 1.4.1 failed because those versions are not available from the registry at audit time. npm's suggested automatic fix downgrades Expo/React Native across major versions; do **not** apply that breaking downgrade blindly. The production workflow now blocks on high/critical npm audit findings. Reassess when upstream patched releases are available or a reviewed compatible mitigation is approved.
+2. **No committed mobile lockfile.** CI currently resolves the mobile dependency tree with `npm install`; a committed `package-lock.json` and reproducible `npm ci` build are required before a stable production release.
+3. Stable Android signing secrets must be created and configured privately by the repository owner. Never commit a keystore or password.
 2. Real Android and iOS physical-device tests must be recorded using mobile/DEVICE_TEST_CHECKLIST.md. CI emulators/simulators do not satisfy that requirement.
 3. The iOS build needs authorised signing/distribution for physical-device testing.
 4. No suitable approved individual-level Australian longitudinal daily-mood dataset is in the repository. ABS aggregates are contextual only; the visible personal model is not Australian-population-trained.

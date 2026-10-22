@@ -33,7 +33,7 @@ Do not paste these values into chat, an issue, a workflow file or a commit. The 
 
 ## Production release gate
 
-Use Actions → Production Android release → Run workflow on the main branch and enter a version tag such as v0.5.0. The production workflow refuses to start if any stable signing secret is missing. It runs source checks, builds a stable-signed APK, verifies the APK certificate, runs Android emulator feature tests and only then creates the release.
+Use Actions → Production Android release → Run workflow on the main branch and enter a version tag such as v0.5.0. The production workflow refuses to start if any stable signing secret is missing. It runs source checks, requires the high/critical npm dependency audit to pass, builds a stable-signed APK, verifies the APK certificate, runs Android emulator feature tests and only then creates the release. It is currently expected to block while the documented unpatched Expo/Metro transitive advisories remain unresolved.
 
 The regular Native Android workflow remains an experimental CI build. A successful compile is not a production release, and an emulator run is not physical-device verification.
 
