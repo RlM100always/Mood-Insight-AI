@@ -33,8 +33,8 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 - **Personal insights:** 7-day and 30-day mood reviews, rolling average vs previous week (when comparable), day-of-week averages, 30-day mood distribution, context comparison with minimum sample thresholds and clear non-causal explanations.
 - **Actionable activity studio:** 22 activity blueprints, explainable top-three ranking using selected focus, time available, recent logs and previous feedback; guided steps, pausable on-screen timer, completion log and optional before/after mood feedback.
 - **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
-- **Experimental on-device ML:** local trained Logistic Regression, Decision Tree and Random Forest probability displays on the Patterns screen, clearly labelled as trained on synthetic data, not validated for real health predictions.
-- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Legacy rows are migrated without deleting data; optional measurements are marked not recorded unless entered under the new flow. The Privacy screen explains why older values may appear as not logged.
+- **Personal learning experiment:** an on-device next-day mood model learns from the user's own consecutive recorded check-ins only, and displays an estimate only when chronological holdout results beat a simple baseline. It is not a clinical model. Synthetic Logistic Regression/Decision Tree/Random Forest artifacts remain test fixtures and are not shown to users.
+- **Privacy:** local-first encrypted records, no ad tracking or analytics, and no automatic cloud sync. The optional research bridge sends a single numerical check-in only after explicit user action and consent; journal notes/context tags remain local. Legacy rows are migrated without deleting data; skipped optional measurements are marked not recorded.
 
 ## Android feature E2E test coverage
 
@@ -80,21 +80,16 @@ npm install
 npx expo run:ios
 ```
 
-## Re-train from authentic, consented mood data (on a local computer)
-The CSV must include `participant_id,date,mood,sleep_hours,exercise_min,stress,synthetic`.
-`synthetic` must explicitly be false for all participants. The exporter rejects mixed/synthetic entries; it writes only fitted numbers and aggregate research metrics, no original mood logs/IDs.
+## Research model training (local, approved data only)
 
-```bash
-python -m pip install -r research/requirements.txt
-python -m research.export_mobile_model --data /private/consented.csv --out mobile/src/ml/demo-model.json
-```
+The app does not embed the old synthetic demo models as user-facing predictions. The personal experiment is trained in memory from the individual user's own local entries. It is not an Australian-population-trained model.
 
-Rebuilding the native app will then embed the new, consented real-data model. Do not push real-user-derived trained coefficients/results to a public repository without an ethics/privacy review. The app currently displays the synthetic demo label; re-label the UI and undergo independent evaluation before distributing a real-trained build.
+For a separate research experiment, use the guarded pipeline described in [research/README.md](../research/README.md). It requires a daily longitudinal dataset, source/ethics identifiers and explicit human attestations for consent, licence and Australian sample provenance. It uses participant-level holdout and does not write raw participant rows or IDs. The flags are attestations, not independent verification. Do not copy a research artifact into the app before data-custodian permission, independent evaluation and security/privacy review.
 
-The complete 3-model research comparison remains in `research/model_lab.py`. The native bundled inference is logistic regression only; the RF/DT alternatives have not been deployed into the app.
+The ABS data embedded in the app are population aggregates and cannot train a daily personal mood predictor. Candidate Australian datasets in the catalogue may have non-commercial licensing and different measurement fields; inspect the original codebook and access terms before use.
 
 ## Data/privacy/safety
-There is no remote mood service, cloud storage, advertising SDK or analytics. Local retention cleanup runs on app open/use, **not while the app remains closed**. An encrypted backup/export, account recovery, clinical validation, full accessibility audit and original Mood Buster integration are not yet provided. An uninstalled app or lost encryption key may make local data unrecoverable.
+Mood records are stored locally in an encrypted SQLCipher database; no account, advertising SDK or analytics is required. The optional backend bridge is off until the user opens it and explicitly sends a numerical check-in. Encrypted backup/restore is available in version 0.5.0; the backup passphrase cannot be recovered if lost. Local retention cleanup runs on app open/use, **not while the app remains closed**. Clinical validation, full accessibility audit, physical-device acceptance tests and independent security review are still outstanding. An uninstalled app may remove its device-only database key, so export and verify a backup before uninstalling.
 
 The app is for wellbeing education, not a diagnostic/therapeutic or crisis-management device. In emergencies, contact local emergency services.
 
