@@ -51,3 +51,23 @@ test('default-looking but skipped measurements do not trigger personalised stres
  assert.ok(!plans.some(x=>x.reason.includes('latest check-in recorded high stress')));
  assert.ok(!plans.some(x=>x.reason.includes('latest check-in recorded 7 hours of sleep')));
 });
+
+test('progress excludes future check-ins and keeps missing days out of averages',()=>{
+ const now=new Date(2026,9,21,12);
+ const past=day('2026-10-20',4);
+ const future=day('2026-10-22',1);
+ const result=review([past,future],[],now);
+ assert.equal(result.entries,1);
+ assert.equal(result.average,4);
+ assert.equal(result.delta,null);
+ const goals=weeklyGoalProgress([past,future],[],DEFAULT_PREFERENCES,now);
+ assert.equal(goals.checkins.done,1);
+ assert.ok(goals.checkins.ratio>=0&&goals.checkins.ratio<=1);
+});
+
+test('recommendation library remains safe with empty history and no activity sessions',()=>{
+ const plan=recommendationPlan([],[],DEFAULT_PREFERENCES,'general',true,new Date(2026,9,21,12));
+ assert.ok(plan.length>=20);
+ assert.ok(plan.every(item=>item.steps.length>0&&item.reason.length>0&&item.evidence.length>0));
+ assert.ok(!plan.some(item=>/latest check-in recorded/.test(item.reason)));
+});
