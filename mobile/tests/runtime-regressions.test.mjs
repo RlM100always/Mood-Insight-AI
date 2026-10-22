@@ -15,3 +15,14 @@ test('SQLCipher startup does not cache a closed database after a failed init',()
   assert.ok(vault.includes('input.day > localDay()'));
   assert.ok(vault.includes('input.day < localDay('));
 });
+
+test('quick check-in marks skipped measurements as unknown rather than observed defaults',()=>{
+  const vault=readFileSync(new URL('../src/data/vault.ts',import.meta.url),'utf8');
+  const types=readFileSync(new URL('../src/types.ts',import.meta.url),'utf8');
+  const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');
+  assert.ok(vault.includes('sleep_recorded INTEGER NOT NULL DEFAULT 0'));
+  assert.ok(types.includes('sleep_recorded: 0 | 1'));
+  assert.ok(app.includes("useState('')"));
+  assert.ok(app.includes('Choose a mood to save'));
+  assert.ok(app.includes('optional'));
+});

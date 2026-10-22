@@ -207,9 +207,9 @@ export function recommendationPlan(
     }
     if(item.category===prefs.focus){score+=3;reasons.push('Fits your selected focus: '+prefs.focus+'.');}
     if(recent&&latest){
-      if(item.category==='calm'&&latest.stress>=4){score+=4;reasons.push('Your latest check-in recorded high stress ('+latest.stress+'/5).');}
-      if(item.category==='sleep'&&latest.sleep_hours<7){score+=3;reasons.push('Your latest check-in recorded '+latest.sleep_hours+' hours of sleep.');}
-      if(item.category==='energy'&&latest.exercise_min<20){score+=1;reasons.push('A short movement or transition break may fit your recent routine.');}
+      if(item.category==='calm'&&latest.stress_recorded===1&&latest.stress>=4){score+=4;reasons.push('Your latest check-in recorded high stress ('+latest.stress+'/5).');}
+      if(item.category==='sleep'&&latest.sleep_recorded===1&&latest.sleep_hours<7){score+=3;reasons.push('Your latest check-in recorded '+latest.sleep_hours+' hours of sleep.');}
+      if(item.category==='energy'&&latest.exercise_recorded===1&&latest.exercise_min<20){score+=1;reasons.push('A short movement or transition break may fit your recent routine.');}
       if(item.category==='balance'&&latest.mood<=2){score+=2;reasons.push('A low-pressure option after a difficult-feeling day.');}
       if(item.category==='connection'&&latest.context_tags.split(',').includes('Social')){score+=1;reasons.push('Offers a small connection step.');}
     }
@@ -244,12 +244,12 @@ export function suggestedNextStep(entries:Entry[],sessions:Session[],now=new Dat
     body:'It has been a while since your last check-in. You do not need to fill in missed days or keep a streak. Start from how you feel now.',
     situation:'general',buttonLabel:'Choose a fresh start'
   };
-  if(latest.stress>=4)return {
+  if(latest.stress_recorded===1&&latest.stress>=4)return {
     title:'Make the next few minutes easier',
     body:'Your latest check-in recorded high stress. You could try a short grounding reset, park one looping thought or contact someone you trust. Pick what feels comfortable; you can stop at any time.',
     situation:'stress',buttonLabel:'Find a stress reset'
   };
-  if(latest.sleep_hours<6.5)return {
+  if(latest.sleep_recorded===1&&latest.sleep_hours<6.5)return {
     title:'Protect one small part of your rest',
     body:'Your latest check-in recorded a short night of sleep. Rather than trying to fix everything, prepare one small thing for tomorrow or choose a gentle wind-down.',
     situation:'sleep',buttonLabel:'Build a wind-down'

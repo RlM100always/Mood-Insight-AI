@@ -57,6 +57,13 @@ export async function openVault(): Promise<void> {
     if(!existing.has('energy')) await candidate.execAsync('ALTER TABLE mood_entries ADD COLUMN energy INTEGER NOT NULL DEFAULT 3');
     if(!existing.has('sleep_quality')) await candidate.execAsync('ALTER TABLE mood_entries ADD COLUMN sleep_quality INTEGER NOT NULL DEFAULT 3');
     if(!existing.has('context_tags')) await candidate.execAsync("ALTER TABLE mood_entries ADD COLUMN context_tags TEXT NOT NULL DEFAULT ''");
+    // Legacy records cannot prove which optional values were actually entered.
+    // Default all new provenance flags to 0 rather than treating old defaults as observations.
+    const measurementColumns = await candidate.getAllAsync<{name:string}>('PRAGMA table_info(mood_entries)');
+    const measurementNames = new Set(measurementColumns.map(c=>c.name));
+    for (const name of ['sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded']) {
+      if (!measurementNames.has(name)) await candidate.execAsync('ALTER TABLE mood_entries ADD COLUMN '+name+' INTEGER NOT NULL DEFAULT 0 CHECK('+name+' IN (0,1))');
+    }
     const sessionColumns = await candidate.getAllAsync<{name:string}>('PRAGMA table_info(activity_sessions)');
     const activityExisting = new Set(sessionColumns.map(c=>c.name));
     if(!activityExisting.has('duration_seconds')) await candidate.execAsync('ALTER TABLE activity_sessions ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0');
@@ -104,17 +111,21 @@ export async function saveEntry(input: EntryInput): Promise<void> {
     !Number.isInteger(input.energy) || input.energy < 1 || input.energy > 5 ||
     !Number.isInteger(input.sleep_quality) || input.sleep_quality < 1 || input.sleep_quality > 5 ||
     input.context_tags.length > 250 || input.context_tags.split(',').some(t=>t.length>0&&!CONTEXT_TAGS.some(c=>c===t)) ||
-    input.note.length > 2000) throw new Error('Check date (not future/older than 365 days), mood/stress/energy/sleep quality (1–5), sleep (0–24h), activity (0–600min), notes and contexts.');
+    input.note.length > 2000 ||
+    [input.sleep_recorded,input.exercise_recorded,input.stress_recorded,input.energy_recorded,input.sleep_quality_recorded].some(v=>v!==0&&v!==1))
+    throw new Error('Check date, mood, optional measurements, provenance flags, notes and contexts.');
   const current = Date.now();
   // A day can be edited without increasing the entry count.
   await db().runAsync(
-    'INSERT INTO mood_entries (id,day,mood,sleep_hours,exercise_min,stress,note,created_at,updated_at,energy,sleep_quality,context_tags) ' +
-    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(day) DO UPDATE SET mood=excluded.mood,' +
+    'INSERT INTO mood_entries (id,day,mood,sleep_hours,exercise_min,stress,note,created_at,updated_at,energy,sleep_quality,context_tags,sleep_recorded,exercise_recorded,stress_recorded,energy_recorded,sleep_quality_recorded) ' +
+    'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(day) DO UPDATE SET mood=excluded.mood,' +
     'sleep_hours=excluded.sleep_hours,exercise_min=excluded.exercise_min,stress=excluded.stress,' +
     'note=excluded.note,energy=excluded.energy,sleep_quality=excluded.sleep_quality,' +
-    'context_tags=excluded.context_tags,updated_at=excluded.updated_at',
+    'context_tags=excluded.context_tags,sleep_recorded=excluded.sleep_recorded,exercise_recorded=excluded.exercise_recorded,' +
+    'stress_recorded=excluded.stress_recorded,energy_recorded=excluded.energy_recorded,sleep_quality_recorded=excluded.sleep_quality_recorded,updated_at=excluded.updated_at',
     randomHex(16), input.day, input.mood, input.sleep_hours, input.exercise_min,
-    input.stress, input.note.trim(), current, current, input.energy, input.sleep_quality,input.context_tags
+    input.stress, input.note.trim(), current, current, input.energy, input.sleep_quality,input.context_tags,
+    input.sleep_recorded,input.exercise_recorded,input.stress_recorded,input.energy_recorded,input.sleep_quality_recorded
   );
   await purgeExpired();
 }

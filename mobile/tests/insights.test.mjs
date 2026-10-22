@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {averageMood,currentStreak,detectPatterns,recommend,localDay} from '../src/insights.ts';
 
 function entry(day,mood,sleep,exercise,stress) {
-  return {id:day,day,mood,sleep_hours:sleep,exercise_min:exercise,stress,note:'',
+  return {id:day,day,mood,sleep_hours:sleep,exercise_min:exercise,stress,energy:3,sleep_quality:3,
+    sleep_recorded:1,exercise_recorded:1,stress_recorded:1,energy_recorded:1,sleep_quality_recorded:1,note:'',
     created_at:Date.now(),updated_at:Date.now()};
 }
 test('no invented statistics with too little history',()=>{

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DEFAULT_PREFERENCES,recommendationPlan,review,filterJournal,weekdayInsights,contextInsights,weeklyGoalProgress} from '../src/deep.ts';
-const day=(d,mood=3,context_tags='')=>({id:d,day:d,mood,sleep_hours:7,exercise_min:5,stress:3,energy:3,sleep_quality:3,context_tags,note:'',created_at:0,updated_at:0});
+const day=(d,mood=3,context_tags='')=>({id:d,day:d,mood,sleep_hours:7,exercise_min:5,stress:3,energy:3,sleep_quality:3,context_tags,sleep_recorded:1,exercise_recorded:1,stress_recorded:1,energy_recorded:1,sleep_quality_recorded:1,note:'',created_at:0,updated_at:0});
 test('activity selection respects time and focus and sorts top three',()=>{
  const p={...DEFAULT_PREFERENCES,max_minutes:7,focus:'calm'};
  const result=recommendationPlan([day('2026-10-21',2)],[ ],p);

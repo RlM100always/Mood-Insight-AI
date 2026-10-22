@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DEFAULT_PREFERENCES,recommendationPlan,filterJournal,review,suggestedNextStep} from '../src/deep.ts';
 function entry(date,mood=3){
  return {id:date,day:date,mood,stress:4,energy:3,sleep_quality:3,sleep_hours:6.5,
- exercise_min:0,context_tags:'Study',note:'study journal',created_at:0,updated_at:0};
+ exercise_min:0,context_tags:'Study',sleep_recorded:1,exercise_recorded:1,stress_recorded:1,energy_recorded:1,sleep_quality_recorded:1,note:'study journal',created_at:0,updated_at:0};
 }
 test('new data fields can be used in rankings and local journal search',()=>{
  const logs=[entry('2026-10-19',3),entry('2026-10-20',4)];

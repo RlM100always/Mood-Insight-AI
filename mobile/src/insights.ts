@@ -34,13 +34,14 @@ export function detectPatterns(entries: Entry[]): Pattern[] {
   // Descriptive comparisons only; no causal claims and no fabricated confidence.
   if (entries.length < 7) return [];
   const patterns: Pattern[] = [];
-  const groups: {id: string; title: string; predicate: (e: Entry) => boolean; phrase: string}[] = [
-    {id: 'sleep',title: 'Sleep and mood',predicate: e => e.sleep_hours < 7,phrase: 'under 7 hours of sleep'},
-    {id: 'stress',title: 'Stress and mood',predicate: e => e.stress >= 4,phrase: 'high stress'},
-    {id: 'move',title: 'Movement and mood',predicate: e => e.exercise_min >= 20,phrase: '20+ minutes of movement'}
+  const groups: {id: string; title: string; known:(e:Entry)=>boolean; predicate: (e: Entry) => boolean; phrase: string}[] = [
+    {id: 'sleep',title: 'Sleep and mood',known:e=>e.sleep_recorded===1,predicate: e => e.sleep_hours < 7,phrase: 'under 7 hours of sleep'},
+    {id: 'stress',title: 'Stress and mood',known:e=>e.stress_recorded===1,predicate: e => e.stress >= 4,phrase: 'high stress'},
+    {id: 'move',title: 'Movement and mood',known:e=>e.exercise_recorded===1,predicate: e => e.exercise_min >= 20,phrase: '20+ minutes of movement'}
   ];
   for (const g of groups) {
-    const [a, b] = asPair(entries, g.predicate);
+    const eligible=entries.filter(g.known);
+    const [a, b] = asPair(eligible, g.predicate);
     if (a.length < 3 || b.length < 3) continue;
     const aScore = average(a.map(e => e.mood));
     const bScore = average(b.map(e => e.mood));
@@ -59,18 +60,23 @@ export function recommend(entries: Entry[]): Activity[] {
   const newest = [...entries].sort((a, b) => b.day.localeCompare(a.day))[0];
   const patterns = detectPatterns(entries).map(p => p.id);
   const items: Activity[] = [];
-  if (newest && (newest.stress >= 4 || patterns.includes('stress'))) items.push({
+  if (newest && ((newest.stress_recorded===1&&newest.stress >= 4) || patterns.includes('stress'))) items.push({
     id: 'breathing',title: 'Guided breathing break',minutes: 5,difficulty: 'Easy',
-    reason: 'You logged stress at ' + newest.stress + '/5. A short breathing pause is one low-effort way to unwind.'
+    reason: newest.stress_recorded===1&&newest.stress>=4
+      ? 'You recorded stress at '+newest.stress+'/5 in your latest check-in. A short breathing pause is one low-effort option.'
+      : 'Your recorded days show an association between higher stress and mood. A short breathing pause is one option.'
   });
-  if (newest && (newest.sleep_hours < 7 || patterns.includes('sleep'))) items.push({
+  if (newest && ((newest.sleep_recorded===1&&newest.sleep_hours < 7) || patterns.includes('sleep'))) items.push({
     id: 'winddown',title: 'Screen-free wind-down',minutes: 15,difficulty: 'Easy',
-    reason: 'Your most recent sleep log is ' + newest.sleep_hours.toFixed(1) +
-      ' hours. A consistent bedtime routine may support rest.'
+    reason: newest.sleep_recorded===1&&newest.sleep_hours<7
+      ? 'Your latest recorded sleep was '+newest.sleep_hours.toFixed(1)+' hours. A consistent bedtime routine may support rest.'
+      : 'Your recorded days show an association between sleep and mood. A gentle wind-down is one option.'
   });
-  if (newest && newest.exercise_min < 20) items.push({
+  if (newest && ((newest.exercise_recorded===1&&newest.exercise_min < 20) || patterns.includes('move'))) items.push({
     id: 'walk',title: 'Go for a gentle walk',minutes: 10,difficulty: 'Easy',
-    reason: 'You logged ' + newest.exercise_min + ' minutes of exercise. Light movement is a flexible option.'
+    reason: newest.exercise_recorded===1&&newest.exercise_min<20
+      ? 'You recorded '+newest.exercise_min+' minutes of movement. Light movement is a flexible option.'
+      : 'Your recorded days show an association between movement and mood. A gentle walk is one option.'
   });
   const defaults: Activity[] = [
     {id:'journal',title:'Write a short reflection',minutes:10,difficulty:'Easy',reason:'A quick reflection can help you notice your thoughts. No mood improvement is guaranteed.'},

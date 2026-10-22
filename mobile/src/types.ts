@@ -10,10 +10,15 @@ export type Entry = {
   energy: MoodScore;
   sleep_quality: MoodScore;
   context_tags: string;
+  sleep_recorded: 0 | 1;
+  exercise_recorded: 0 | 1;
+  stress_recorded: 0 | 1;
+  energy_recorded: 0 | 1;
+  sleep_quality_recorded: 0 | 1;
   created_at: number;
   updated_at: number;
 };
-export type EntryInput = Pick<Entry, 'day' | 'mood' | 'sleep_hours' | 'exercise_min' | 'stress' | 'note' | 'energy' | 'sleep_quality' | 'context_tags'>;
+export type EntryInput = Pick<Entry, 'day' | 'mood' | 'sleep_hours' | 'exercise_min' | 'stress' | 'note' | 'energy' | 'sleep_quality' | 'context_tags' | 'sleep_recorded' | 'exercise_recorded' | 'stress_recorded' | 'energy_recorded' | 'sleep_quality_recorded'>;
 export type Activity = {id: string; title: string; reason: string; minutes: number; difficulty: 'Easy' | 'Moderate';};
 export type Session = {id: string; activity_id: string; day: string; created_at: number; helpful: number | null; duration_seconds: number; mood_before: number | null; mood_after: number | null};
 export type Pattern = {id: string; title: string; detail: string; count: number;};

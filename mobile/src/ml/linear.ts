@@ -82,5 +82,6 @@ export function predictNextMood(model: LinearModel, entry: Entry): Inference {
 
 export function canPredict(entries: Entry[]): boolean {
   // 7 genuine local check-ins are a display gate, not evidence that the demo is accurate.
-  return entries.length >= 7 && entries.every(e=>e.mood>=1&&e.mood<=5);
+  return entries.length >= 7 && entries.every(e=>e.mood>=1&&e.mood<=5&&
+    e.sleep_recorded===1&&e.exercise_recorded===1&&e.stress_recorded===1);
 }

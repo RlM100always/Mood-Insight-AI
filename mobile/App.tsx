@@ -17,6 +17,7 @@ import {predictTreeDemo} from './src/ml/trees';
 import type {TreeArtifact} from './src/ml/trees';
 import treeDemo from './src/ml/trees-demo.json';
 import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
+import {buildEntryInput} from './src/checkin';
 import type {Preferences,Situation} from './src/deep';
 import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
 import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
@@ -62,13 +63,13 @@ function Heading({kicker,title,description}: {kicker:string;title:string;descrip
     {description ? <Text style={s.subheading}>{description}</Text> : null}
   </View>;
 }
-function Field({label,value,onChangeText,keyboardType='default',multiline=false,maxLength}:{
+function Field({label,value,onChangeText,keyboardType='default',multiline=false,maxLength,placeholder}:{
   label:string;value:string;onChangeText:(text:string)=>void;
-  keyboardType?:'numeric'|'default';multiline?:boolean;maxLength?:number;
+  keyboardType?:'numeric'|'default';multiline?:boolean;maxLength?:number;placeholder?:string;
 }) {
   return <View style={s.field}><Label>{label}</Label>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText}
-      keyboardType={keyboardType} multiline={multiline} maxLength={maxLength}
+      keyboardType={keyboardType} multiline={multiline} maxLength={maxLength} placeholder={placeholder}
       placeholderTextColor="#9AA5AB" style={[s.input,multiline && s.multiline]}
       autoCorrect={multiline} />
   </View>;
@@ -85,20 +86,31 @@ export default function App() {
   const [tab,setTab] = useState<Tab>('Today');
   const [entries,setEntries] = useState<Entry[]>([]);
   const [sessions,setSessions] = useState<Session[]>([]);
-  const [mood,setMood] = useState<MoodScore>(3);
-  const [stress,setStress] = useState<MoodScore>(3);
+  const [mood,setMood] = useState<MoodScore|null>(null);
+  const [stress,setStress] = useState<MoodScore|null>(null);
   const [day,setDay] = useState(localDay());
-  const [sleep,setSleep] = useState('7');
-  const [exercise,setExercise] = useState('0');
+  const [sleep,setSleep] = useState('');
+  const [exercise,setExercise] = useState('');
   const [note,setNote] = useState('');
-  const [energy,setEnergy] = useState<MoodScore>(3);
-  const [sleepQuality,setSleepQuality] = useState<MoodScore>(3);
+  const [energy,setEnergy] = useState<MoodScore|null>(null);
+  const [sleepQuality,setSleepQuality] = useState<MoodScore|null>(null);
+  const [formInitialized,setFormInitialized] = useState(false);
   const [tags,setTags] = useState<string[]>([]);
   const [preferences,setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [activitySituation,setActivitySituation] = useState<Situation>('general');
   const [saving,setSaving] = useState(false);
   const [privacyAccepted,setPrivacyAccepted] = useState(false);
 
+  const fillEntry = (entry:Entry) => {
+    setDay(entry.day);setMood(entry.mood);
+    setStress(entry.stress_recorded===1?entry.stress:null);
+    setSleep(entry.sleep_recorded===1?String(entry.sleep_hours):'');
+    setExercise(entry.exercise_recorded===1?String(entry.exercise_min):'');
+    setNote(entry.note);setEnergy(entry.energy_recorded===1?entry.energy:null);
+    setSleepQuality(entry.sleep_quality_recorded===1?entry.sleep_quality:null);
+    setTags(entry.context_tags?entry.context_tags.split(','):[]);
+    setFormInitialized(true);
+  };
   const refresh = async () => {
     const [m, a, p] = await Promise.all([listEntries(),listSessions(),loadPreferences()]);
     setEntries(m); setSessions(a);setPreferences(p);
@@ -118,6 +130,12 @@ export default function App() {
     } finally {setReady(true);}
   };
   useEffect(() => {void boot();},[]);
+  useEffect(() => {
+    if(!ready||!consented||formInitialized)return;
+    const todayEntry=entries.find(e=>e.day===localDay());
+    if(todayEntry)fillEntry(todayEntry);
+    setFormInitialized(true);
+  },[ready,consented,entries,formInitialized]);
   const proceed = async () => {
     if (!privacyAccepted) return;
     setSaving(true);
@@ -128,24 +146,20 @@ export default function App() {
     finally {setSaving(false);}
   };
   const save = async () => {
+    if(mood===null){setFeatureError('Choose your mood before saving. Sleep, movement, stress, energy and sleep quality are optional.');return;}
     setSaving(true);
     try {
-      await saveEntry({
-        day, mood, sleep_hours:Number(sleep), exercise_min:Number(exercise),
-        stress, note:note.trim(),energy,sleep_quality:sleepQuality,context_tags:tags.join(',')
-      });
+      const payload=buildEntryInput({day,mood,sleep,exercise,stress,note:note.trim(),energy,sleepQuality,tags});
+      await saveEntry(payload);
       await refresh();
       setFeatureError('');
-      setNote(''); setDay(localDay());setEnergy(3);setSleepQuality(3);setTags([]);
-      Alert.alert('Saved on your device','Your check-in is encrypted in the local database.');
+      setFormInitialized(true);
+      Alert.alert('Saved on your device','Your check-in is encrypted locally. Any skipped measurements are marked as not logged, not treated as zero or average.');
     } catch (cause) {handleError(cause);}
     finally {setSaving(false);}
   };
   const edit = (entry: Entry) => {
-    setDay(entry.day);setMood(entry.mood);setStress(entry.stress);
-    setSleep(String(entry.sleep_hours));setExercise(String(entry.exercise_min));
-    setNote(entry.note);setEnergy(entry.energy||3);setSleepQuality(entry.sleep_quality||3);
-    setTags(entry.context_tags?entry.context_tags.split(','):[]);setTab('Today');
+    fillEntry(entry);setTab('Today');
   };
   const confirmRemove = (entry: Entry) => Alert.alert(
     'Delete this day?', 'This permanently removes the check-in from this device.', [
@@ -162,7 +176,7 @@ export default function App() {
         try {
           await eraseEverything();setEntries([]);setSessions([]);
           setConsented(false);setPrivacyAccepted(false);setTab('Today');
-          setNote('');setDay(localDay());setError('');setFeatureError('');setDiagnosticResult('');setEnergy(3);setSleepQuality(3);setTags([]);setPreferences(DEFAULT_PREFERENCES);
+          setNote('');setDay(localDay());setError('');setFeatureError('');setDiagnosticResult('');setMood(null);setStress(null);setSleep('');setExercise('');setEnergy(null);setSleepQuality(null);setTags([]);setFormInitialized(true);setPreferences(DEFAULT_PREFERENCES);
         } catch(e) {handleError(e);}
       })()}
     ]
@@ -257,7 +271,14 @@ export default function App() {
             <Text style={s.footnote}>Suggestions are optional and based only on your own local check-ins and activity feedback. They are not diagnoses.</Text>
           </Card>
           <Card>
-            <Field label="Date (YYYY-MM-DD)" value={day} onChangeText={setDay}/>
+            <Field label="Date (YYYY-MM-DD)" value={day} onChangeText={value=>{
+            setDay(value);
+            if(/^\d{4}-\d{2}-\d{2}$/.test(value)){
+              const existing=entries.find(e=>e.day===value);
+              if(existing)fillEntry(existing);
+              else{setMood(null);setStress(null);setSleep('');setExercise('');setNote('');setEnergy(null);setSleepQuality(null);setTags([]);setFormInitialized(true);}
+            }
+          }}/>
             <Label>YOUR MOOD TODAY</Label>
             <View style={s.moodRow}>{MOODS.map(m=>
               <Pressable accessibilityRole="button" accessibilityLabel={m.label} key={m.mood}
@@ -265,19 +286,23 @@ export default function App() {
                 <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={s.moodText}>{m.label}</Text>
               </Pressable>)}</View>
             <View style={s.twoCol}>
-              <View style={{flex:1}}><Field label="Sleep last night (hrs)" value={sleep} onChangeText={setSleep} keyboardType="numeric"/></View>
-              <View style={{flex:1}}><Field label="Movement (min)" value={exercise} onChangeText={setExercise} keyboardType="numeric"/></View>
+              <View style={{flex:1}}><Field label="Sleep last night (hrs) · optional" value={sleep} onChangeText={setSleep} keyboardType="numeric" placeholder="Skip if unsure"/></View>
+              <View style={{flex:1}}><Field label="Movement (min) · optional" value={exercise} onChangeText={setExercise} keyboardType="numeric" placeholder="Skip if unsure"/></View>
             </View>
-            <Label>STRESS LEVEL · {stress}/5</Label>
-            <View style={s.chipRow}>{([1,2,3,4,5] as MoodScore[]).map(v=>
-              <Pressable key={v} accessibilityLabel={'Stress '+v} onPress={()=>setStress(v)}
+            <Label>STRESS LEVEL · OPTIONAL{stress===null?' · NOT LOGGED':' · '+stress+'/5'}</Label>
+            <View style={s.chipRow}>
+              <Pressable accessibilityRole="button" accessibilityState={{selected:stress===null}} onPress={()=>setStress(null)} style={[s.chip,stress===null&&s.chipActive]}>
+                <Text style={[s.chipText,stress===null&&{color:C.white}]}>Skip</Text>
+              </Pressable>
+              {([1,2,3,4,5] as MoodScore[]).map(v=>
+              <Pressable key={v} accessibilityRole="button" accessibilityState={{selected:stress===v}} accessibilityLabel={'Stress '+v} onPress={()=>setStress(v)}
                 style={[s.chip,stress===v && s.chipActive]}>
                 <Text style={[s.chipText,stress===v && {color:C.white}]}>{v}</Text>
               </Pressable>)}</View>
             <AdditionalCheckin energy={energy} onEnergy={setEnergy} quality={sleepQuality} onQuality={setSleepQuality} tags={tags} onTags={setTags}/>
             <Field label="Your thoughts (optional)" value={note} onChangeText={setNote} multiline maxLength={2000}/>
-            <Primary label={saving?'Saving…':'Save private check-in'} disabled={saving} action={()=>void save()}/>
-            <Text style={s.footnote}>One entry per day. Saving the same date updates it.</Text>
+            <Primary label={saving?'Saving…':entries.some(e=>e.day===day)?'Update private check-in':'Save private check-in'} disabled={saving} action={()=>void save()}/>
+            <Text style={s.footnote}>Choose a mood to save. Sleep, movement, stress, energy and sleep quality can be skipped; skipped values are excluded from comparisons. One entry per day; saving the same date updates it.</Text>
           </Card>
           <Card tint={C.peach}>
             <Text style={s.h3}>When an app isn't enough</Text>
