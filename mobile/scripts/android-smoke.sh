@@ -159,6 +159,13 @@ echo "PASS: encrypted journal survives a full app process restart"
 
 # Exercise a real guided activity and feedback workflow.
 find_and_tap "Activities tab"
+# A tab may retain the previous ScrollView offset. Return to the top before
+# asserting the activity screen, then allow the native view tree to settle.
+for attempt in 1 2 3; do
+  adb shell input swipe 490 680 490 1550 350 || true
+  sleep 2
+done
+wait_for_text "Small actions, real choices"
 wait_for_text "Three suggestions for right now"
 find_and_tap "See guided steps"
 wait_for_text "A simple step-by-step guide"
