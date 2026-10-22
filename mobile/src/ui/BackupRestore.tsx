@@ -3,6 +3,7 @@ import {Alert,Text,TextInput} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Crypto from 'expo-crypto';
 import {encryptBackup,decryptBackup} from '../backup';
 import {createBackupSnapshot,mergeBackupSnapshot} from '../data/vault';
 import {Panel,Action,st,colors} from './Shared';
@@ -15,7 +16,7 @@ export function BackupRestore({refresh}:Props){
   if(passphrase!==confirm){Alert.alert('Passphrases do not match','Enter the same passphrase twice.');return;}
   setBusy(true);setStatus('');
   try{
-   const encrypted=await encryptBackup(await createBackupSnapshot(),passphrase);
+   const encrypted=await encryptBackup(await createBackupSnapshot(),passphrase,size=>Crypto.getRandomBytes(size));
    if(!FileSystem.cacheDirectory)throw new Error('Private cache storage is unavailable on this device.');
    const uri=FileSystem.cacheDirectory+'mood-insight-backup-'+new Date().toISOString().slice(0,10)+'.mibak';
    await FileSystem.writeAsStringAsync(uri,encrypted,{encoding:FileSystem.EncodingType.UTF8});
