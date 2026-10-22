@@ -20,7 +20,8 @@ test('quick check-in marks skipped measurements as unknown rather than observed 
   const vault=readFileSync(new URL('../src/data/vault.ts',import.meta.url),'utf8');
   const types=readFileSync(new URL('../src/types.ts',import.meta.url),'utf8');
   const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');
-  assert.ok(vault.includes('sleep_recorded INTEGER NOT NULL DEFAULT 0'));
+  assert.ok(vault.includes("['sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded']"));
+  assert.ok(vault.includes('INTEGER NOT NULL DEFAULT 0 CHECK('));
   assert.ok(types.includes('sleep_recorded: 0 | 1'));
   assert.ok(app.includes("useState('')"));
   assert.ok(app.includes('Choose a mood to save'));

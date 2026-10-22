@@ -17,7 +17,7 @@ Go to **Releases** → open the newest **Android experimental APK** → expand *
 The native Patterns screen now includes an offline explorer for **real ABS 2020–2022 Australian mental-health population data**. These published population proportions are not valid individual next-day mood prediction training labels. The optional self-hosted Flask API implements account, mood log, history, recommendations, activity feedback and progress routes. It is **not automatically connected** and private notes are not uploaded. The optional HTTPS bridge is under Privacy.
 
 ### Implemented
-- Native screens: mood, sleep, stress and exercise logging, journal, trends, explanations, activities, privacy controls
+- Native screens: mood check-ins with optional sleep/stress/movement fields, situation-aware guided actions, journal, trends, next-step suggestions, human-support directory and privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore
 - Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
 - **Three trained synthetic-demo classifiers on device:** Logistic Regression, a compact Decision Tree (depth 3) and Random Forest (8 shallow trees), selectable in Patterns. They run offline, are **not** trained on real Australian individual records and have **no validated health-prediction accuracy**.

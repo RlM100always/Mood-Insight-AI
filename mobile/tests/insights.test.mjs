@@ -31,3 +31,13 @@ test('calendar streak respects missing days and local calendar',()=>{
   assert.equal(currentStreak(logs,now),2);
   assert.equal(localDay(now),'2026-10-21');
 });
+
+test('unrecorded optional measurements are excluded from group comparisons',()=>{
+ const logs=[
+  entry('2026-10-01',2,5,0,5),entry('2026-10-02',2,6,0,5),entry('2026-10-03',2,6,0,5),
+  entry('2026-10-04',4,8,25,2),entry('2026-10-05',4,8,25,2),
+  entry('2026-10-06',5,8,25,2),entry('2026-10-07',4,8,25,2)
+ ].map((e,i)=>i<3?e:{...e,sleep_recorded:0,exercise_recorded:0,stress_recorded:0});
+ const results=detectPatterns(logs);
+ assert.ok(!results.some(p=>p.id==='sleep'||p.id==='stress'||p.id==='move'));
+});

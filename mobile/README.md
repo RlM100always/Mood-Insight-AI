@@ -6,7 +6,7 @@
 - Human support is discoverable through a country-based directory; urgent-risk wording clarifies that the app is not monitored and cannot call for help.
 - Stale check-ins no longer steer current activity recommendations.
 
-## Reliability fixes in 0.3.1
+## Current user-centred release: 0.4.0
 
 - Android emulator E2E explicitly confirms and dismisses the native save dialog before journal navigation, avoiding a false test failure.
 - Encrypted SQLite opening resets the cached DB handle if an initialization/retention step fails.
@@ -28,13 +28,13 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 
 ## Advanced app features
 
-- **Deeper mood check-ins:** 1–5 mood, stress, energy, sleep quality, sleep hours, exercise minutes, context tags and optional journal notes; edit old entries without losing existing records.
+- **Low-friction, honest check-ins:** mood is required; sleep, movement, stress, energy and sleep quality are optional. Encrypted per-field recorded flags ensure skipped fields are not treated as zero or average. Legacy measurement values are preserved but marked unknown because the app cannot infer whether old defaults were actually chosen.
 - **Encrypted local history:** SQLCipher AES-256 with device-protected key and migration of existing data; on-device journal search by date, notes and context, 30-day or all-history views.
 - **Personal insights:** 7-day and 30-day mood reviews, rolling average vs previous week (when comparable), day-of-week averages, 30-day mood distribution, context comparison with minimum sample thresholds and clear non-causal explanations.
 - **Actionable activity studio:** 22 activity blueprints, explainable top-three ranking using selected focus, time available, recent logs and previous feedback; guided steps, pausable on-screen timer, completion log and optional before/after mood feedback.
 - **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
 - **Experimental on-device ML:** local trained Logistic Regression, Decision Tree and Random Forest probability displays on the Patterns screen, clearly labelled as trained on synthetic data, not validated for real health predictions.
-- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Old recordings are migrated with default values for new optional measurements.
+- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Legacy rows are migrated without deleting data; optional measurements are marked not recorded unless entered under the new flow.
 
 ## Android feature E2E test coverage
 

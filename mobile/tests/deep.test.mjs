@@ -40,3 +40,14 @@ test('context insight requires sample count and avoids fabricated percentages',(
  assert.equal(insight[0].withCount,4);
  assert.equal(weekdayInsights(logs).length,7);
 });
+
+test('default-looking but skipped measurements do not trigger personalised stress or sleep claims',()=>{
+ const now=new Date(2026,9,22,12);
+ const partial={...day('2026-10-22',3),sleep_recorded:0,exercise_recorded:0,stress_recorded:0,energy_recorded:0,sleep_quality_recorded:0};
+ const next=suggestedNextStep([partial],[],now);
+ assert.notEqual(next.situation,'stress');
+ assert.notEqual(next.situation,'sleep');
+ const plans=recommendationPlan([partial],[],DEFAULT_PREFERENCES,'general',true,now);
+ assert.ok(!plans.some(x=>x.reason.includes('latest check-in recorded high stress')));
+ assert.ok(!plans.some(x=>x.reason.includes('latest check-in recorded 7 hours of sleep')));
+});
