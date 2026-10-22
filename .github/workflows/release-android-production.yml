@@ -126,7 +126,7 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           ## Mood Insight AI $RELEASE_TAG
 
-          Stable-signed Android APK. This release was published only after source checks, unit/regression tests, APK certificate verification, APK-size budget and Android emulator feature smoke passed.
+          Stable-signed Android APK. This release was published only after high/critical dependency audit, source checks, unit/regression tests, APK certificate verification, APK-size budget and Android emulator feature smoke passed.
 
           This is not a claim of clinical validation. The personal mood experiment learns from the individual user's own on-device check-ins; it is not trained on individual-level Australian population data. Australian ABS aggregates are contextual only.
 
