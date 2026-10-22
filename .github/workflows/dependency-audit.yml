@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout --kill-after=5s 300s npm audit --json > npm-audit.json
+          timeout --kill-after=5s 90s npm audit --json --fetch-timeout=30000 --fetch-retries=0 > npm-audit.json
           audit_status=$?
           set -e
           if [[ "$audit_status" -eq 124 ]]; then

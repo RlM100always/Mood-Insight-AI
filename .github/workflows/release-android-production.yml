@@ -56,7 +56,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Audit mobile dependencies before production build
         working-directory: mobile
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --fetch-timeout=30000 --fetch-retries=0
       - name: Typecheck, test and bundle
         working-directory: mobile
         run: |
