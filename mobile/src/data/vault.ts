@@ -162,13 +162,17 @@ export async function savePreferences(value:Preferences):Promise<void>{
   await db().runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities) VALUES (1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities',value.focus,value.max_minutes,value.weekly_checkins,value.weekly_activities);
 }
 
-export async function checkVaultHealth(): Promise<{cipher: string; database: string; journal: string; activities: string; preferences: string}> {
+export async function checkVaultHealth(): Promise<{cipher: string; database: string; journal: string; activities: string; preferences: string; optionalMeasurements:string}> {
   // Genuine on-device read/write test. Uses a disposable record in its own encrypted table;
   // it never changes the user's mood, journal or activity data.
   const connection = db();
   const version = await connection.getFirstAsync<{cipher_version: string}>('PRAGMA cipher_version;');
   if (!version?.cipher_version) throw new Error('SQLCipher is missing from this native build.');
   const tables = await connection.getAllAsync<{name: string}>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('mood_entries','activity_sessions','user_preferences')");
+  const measurementColumns=await connection.getAllAsync<{name:string}>('PRAGMA table_info(mood_entries)');
+  const columnNames=new Set(measurementColumns.map(c=>c.name));
+  const provenance=['sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded'];
+  for(const name of provenance)if(!columnNames.has(name))throw new Error('Missing optional-measurement provenance column: '+name);
   const names = new Set(tables.map(t => t.name));
   for (const name of ['mood_entries', 'activity_sessions', 'user_preferences']) {
     if (!names.has(name)) throw new Error('Missing encrypted database table: ' + name);
@@ -185,7 +189,8 @@ export async function checkVaultHealth(): Promise<{cipher: string; database: str
   // Read each feature's data path without mutating private records.
   await Promise.all([listEntries(), listSessions(),loadPreferences()]);
   return {cipher:version.cipher_version,database:'Encrypted read/write passed',
-    journal:'Read passed',activities:'Read passed',preferences:'Read passed'};
+    journal:'Read passed',activities:'Read passed',preferences:'Read passed',
+    optionalMeasurements:'Unknown/skipped fields are tracked separately'};
 }
 
 export async function eraseEverything(): Promise<void> {

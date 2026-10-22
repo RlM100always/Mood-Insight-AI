@@ -189,7 +189,8 @@ export default function App() {
       const result = await checkVaultHealth();
       setFeatureError('');
       setDiagnosticResult('PASS: '+result.database+'; Journal: '+result.journal+
-        '; Activities: '+result.activities+'; Preferences: '+result.preferences+'. SQLCipher '+result.cipher);
+        '; Activities: '+result.activities+'; Preferences: '+result.preferences+
+        '; Optional measurements: '+result.optionalMeasurements+'. SQLCipher '+result.cipher);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown native database failure';
       setFeatureError(message);

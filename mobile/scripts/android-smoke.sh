@@ -102,6 +102,8 @@ echo "ANDROID SMOKE PASS: APK installation, launch, welcome, consent, encrypted 
 
 # End-to-end feature checks on a fresh disposable emulator.
 # These assertions create only a synthetic entry inside the temporary test device.
+# Mood is the only required field; optional measurements may be skipped in this E2E.
+find_and_tap "Okay"
 find_and_tap "Save private check-in"
 wait_for_text "Saved on your device"
 echo "PASS: new mood entry was accepted by the encrypted database"

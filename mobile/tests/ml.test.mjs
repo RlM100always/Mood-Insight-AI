@@ -15,6 +15,7 @@ test('model does not show outputs until enough local history',()=>{
  assert.equal(canPredict([e]),false);
  assert.equal(canPredict(Array.from({length:7},()=>e)),true);
  assert.equal(canPredict(Array.from({length:7},()=>({...e,sleep_recorded:0}))),false);
+ assert.equal(canPredict([e,...Array.from({length:6},(_,i)=>({...e,id:'old'+i,sleep_recorded:0}))]),true);
 });
 test('model rejects invalid schema or non-finite input',()=>{
  assert.throws(()=>predictNextMood({...model,features:['wrong']},e));
