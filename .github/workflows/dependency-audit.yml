@@ -45,8 +45,28 @@ jobs:
         working-directory: mobile
         shell: bash
         run: |
-          npm audit --json > npm-audit.json || true
-          node -e 'const r=require("./npm-audit.json"); console.log(JSON.stringify({metadata:r.metadata?.vulnerabilities, vulnerablePackages:Object.entries(r.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable}))},null,2))'
+          set +e
+          timeout 120s npm audit --json > npm-audit.json
+          audit_status=$?
+          set -e
+          if [[ "$audit_status" -eq 124 ]]; then
+            echo "::warning::npm audit timed out after 120 seconds; the final threshold step will fail closed."
+            printf '{"error":"npm audit timed out"}\n' > npm-audit.json
+          fi
+          node - <<'NODE'
+          const fs = require('node:fs');
+          try {
+            const r = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
+            console.log(JSON.stringify({
+              metadata: r.metadata?.vulnerabilities,
+              vulnerablePackages: Object.entries(r.vulnerabilities || {}).map(([name, v]) => ({
+                name, severity: v.severity, range: v.range, fixAvailable: v.fixAvailable
+              }))
+            }, null, 2));
+          } catch {
+            console.log('npm audit report is unavailable or invalid; release audit must fail closed.');
+          }
+          NODE'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -58,7 +78,20 @@ jobs:
         run: pip-audit -r research/requirements.txt
       - name: Enforce mobile dependency audit threshold
         working-directory: mobile
-        run: npm audit --audit-level=high
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          let report;
+          try { report = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8')); }
+          catch { console.error('No valid npm audit report; failing closed.'); process.exit(2); }
+          if (!report.metadata?.vulnerabilities) {
+            console.error('npm audit did not return vulnerability metadata; failing closed.');
+            process.exit(2);
+          }
+          const v = report.metadata.vulnerabilities;
+          console.log('npm audit totals:', JSON.stringify(v));
+          if ((v.high || 0) > 0 || (v.critical || 0) > 0) process.exit(1);
+          NODE
       - name: Upload dependency audit diagnostics
         if: always()
         uses: actions/upload-artifact@v4
