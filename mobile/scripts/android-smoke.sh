@@ -72,6 +72,15 @@ wait_for_text_while_scrolling(){
   echo "Expected UI not found after scrolling: $target" >&2
   return 1
 }
+
+# Screens share a native viewport in the test harness. Reset it after switching
+# tabs so a previous screen's scroll position cannot hide the next screen title.
+scroll_to_top(){
+  for attempt in 1 2 3; do
+    adb shell input swipe 490 650 490 1550 350 || true
+    sleep 1
+  done
+}
 tap_label(){
   needle=$1
   capture || { echo "Could not capture hierarchy" >&2; return 1; }
@@ -196,10 +205,12 @@ sleep 2
 echo "PASS: activity feedback control accepted a tap"
 
 find_and_tap "Progress tab"
+scroll_to_top
 wait_for_text "Your wellbeing journey"
 echo "PASS: Progress screen and activity goals rendered"
 
 find_and_tap "Privacy tab"
+scroll_to_top
 wait_for_text "Your data. Your choice."
 find_and_tap "Check app features"
 # Health output may appear below the fold after encryption/storage checks.
