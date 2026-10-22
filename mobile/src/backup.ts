@@ -1,5 +1,5 @@
 import {gcm} from '@noble/ciphers/aes.js';
-import {randomBytes} from '@noble/ciphers/utils.js';
+import * as Crypto from 'expo-crypto';
 import {pbkdf2Async} from '@noble/hashes/pbkdf2.js';
 import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex,hexToBytes,utf8ToBytes} from '@noble/hashes/utils.js';
@@ -61,7 +61,7 @@ export function validateBackupPayload(value:unknown):BackupPayload{
 export async function encryptBackup(payload:BackupPayload,passphrase:string):Promise<string>{
  const valid=validateBackupPayload(payload);
  if(typeof passphrase!=='string'||passphrase.length<12||passphrase.length>256)fail('Use a backup passphrase of at least 12 characters.');
- const salt=randomBytes(16),nonce=randomBytes(12),key=await pbkdf2Async(sha256,utf8ToBytes(passphrase),salt,{c:ITERATIONS,dkLen:32});
+ const salt=Crypto.getRandomBytes(16),nonce=Crypto.getRandomBytes(12),key=await pbkdf2Async(sha256,utf8ToBytes(passphrase),salt,{c:ITERATIONS,dkLen:32});
  const ciphertext=gcm(key,nonce,AAD).encrypt(utf8ToBytes(JSON.stringify(valid)));
  const envelope:Envelope={format:'mood-insight-encrypted-backup',version:1,cipher:'AES-256-GCM',kdf:'PBKDF2-SHA256',iterations:ITERATIONS,salt:bytesToHex(salt),nonce:bytesToHex(nonce),ciphertext:bytesToHex(ciphertext)};
  return JSON.stringify(envelope,null,2)+'\n';

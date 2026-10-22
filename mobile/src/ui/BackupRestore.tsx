@@ -10,6 +10,7 @@ type Props={refresh:()=>Promise<void>};
 export function BackupRestore({refresh}:Props){
  const [passphrase,setPassphrase]=useState(''),[confirm,setConfirm]=useState(''),[busy,setBusy]=useState(false),[status,setStatus]=useState('');
  const exportNow=async()=>{
+  if(busy)return;
   if(passphrase.length<12){Alert.alert('Passphrase too short','Use at least 12 characters. Keep it safe; a lost passphrase cannot be recovered.');return;}
   if(passphrase!==confirm){Alert.alert('Passphrases do not match','Enter the same passphrase twice.');return;}
   setBusy(true);setStatus('');
@@ -26,6 +27,7 @@ export function BackupRestore({refresh}:Props){
   finally{setBusy(false);}
  };
  const chooseRestore=async()=>{
+  if(busy)return;
   if(passphrase.length<12){Alert.alert('Passphrase needed','Enter the original backup passphrase (at least 12 characters).');return;}
   setBusy(true);setStatus('');
   try{

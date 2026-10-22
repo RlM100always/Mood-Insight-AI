@@ -178,3 +178,15 @@ echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagn
 
 adb exec-out screencap -p > android-smoke.png
 echo "ANDROID FEATURE E2E PASS: save, dialog dismiss, encrypted restart persistence, journal edit, guided activity, feedback, progress and storage diagnostics."
+
+# Verify the encrypted backup/restore controls are present without exporting user data
+# or invoking the system file picker on the CI emulator.
+for attempt in $(seq 1 8); do
+  capture || true
+  if test -s window.xml && grep -Fq 'Export encrypted backup' window.xml; then break; fi
+  adb shell input swipe 490 1530 490 720 350 || true
+  sleep 2
+done
+grep -Fq 'Export encrypted backup' window.xml || { echo "FAILED: encrypted backup export control not visible" >&2; exit 1; }
+grep -Fq 'Choose backup file to restore' window.xml || { echo "FAILED: encrypted backup restore control not visible" >&2; exit 1; }
+echo "PASS: encrypted backup and restore controls rendered"
