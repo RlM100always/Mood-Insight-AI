@@ -34,5 +34,5 @@ const envelope=JSON.parse(encrypted);
 envelope.ciphertext=(envelope.ciphertext.startsWith('00')?'01':'00')+envelope.ciphertext.slice(2);
 mkdirSync(dirname(output),{recursive:true});
 writeFileSync(output,encrypted,{mode:0o600});
-writeFileSync(output.replace(/\\.mibak$/,'-tampered.mibak'),JSON.stringify(envelope,null,2)+'\\n',{mode:0o600});
+writeFileSync(output.replace(/\.mibak$/,'-tampered.mibak'),JSON.stringify(envelope,null,2)+'\n',{mode:0o600});
 console.log('Created encrypted synthetic E2E backup fixtures.');
