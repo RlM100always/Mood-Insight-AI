@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'mobile/package.json'
+      - 'mobile/package-lock.json'
       - 'backend/requirements.txt'
       - 'research/requirements.txt'
       - '.github/workflows/dependency-audit.yml'

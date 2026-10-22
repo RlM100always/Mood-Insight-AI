@@ -1,0 +1,43 @@
+name: Refresh mobile dependency lockfile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/package.json'
+      - '.github/workflows/mobile-lockfile-pr.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: mobile-lockfile-pr
+  cancel-in-progress: true
+
+jobs:
+  create-lockfile-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate lockfile without running package scripts
+        working-directory: mobile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Open a reviewable lockfile pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/mobile-dependency-lock
+          delete-branch: true
+          add-paths: mobile/package-lock.json
+          commit-message: "chore: pin mobile dependency tree"
+          title: "chore: add reproducible mobile dependency lockfile"
+          body: |
+            This automated PR adds the npm lockfile generated from mobile/package.json.
+            Please review the dependency tree and the dependency-audit results before merging.
+            The lockfile improves repeatability; it does not itself remediate any advisory.
+          labels: dependencies
