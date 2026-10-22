@@ -5,6 +5,8 @@ import type {Entry, EntryInput, Session} from '../types';
 import {localDay} from '../insights';
 import {DEFAULT_PREFERENCES, CONTEXT_TAGS} from '../deep';
 import type {Preferences} from '../deep';
+import {validateBackupPayload} from '../backup';
+import type {BackupPayload} from '../backup';
 
 const DB_NAME = 'mood_insight_private.db';
 const KEY_ALIAS = 'mood_insight_cipher_key_v1';
@@ -160,6 +162,29 @@ export async function savePreferences(value:Preferences):Promise<void>{
     !Number.isInteger(value.weekly_activities)||value.weekly_activities<1||value.weekly_activities>14)
     throw new Error('Invalid wellbeing preferences.');
   await db().runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities) VALUES (1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities',value.focus,value.max_minutes,value.weekly_checkins,value.weekly_activities);
+}
+
+export async function createBackupSnapshot():Promise<BackupPayload>{
+ return {schema:'mood-insight-backup',version:1,exported_at:new Date().toISOString(),entries:await listEntries(),sessions:await listSessions(),preferences:await loadPreferences()};
+}
+/** Merge backup records without overwriting an existing local check-in for the same date. */
+export async function mergeBackupSnapshot(input:unknown):Promise<{entriesAdded:number;sessionsAdded:number}>{
+ const payload=validateBackupPayload(input),connection=db();
+ const beforeEntries=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM mood_entries');
+ const beforeSessions=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM activity_sessions');
+ await connection.withTransactionAsync(async()=>{
+  for(const e of payload.entries)await connection.runAsync(
+   'INSERT OR IGNORE INTO mood_entries (id,day,mood,sleep_hours,exercise_min,stress,note,created_at,updated_at,energy,sleep_quality,context_tags,sleep_recorded,exercise_recorded,stress_recorded,energy_recorded,sleep_quality_recorded) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+   e.id,e.day,e.mood,e.sleep_hours,e.exercise_min,e.stress,e.note,e.created_at,e.updated_at,e.energy,e.sleep_quality,e.context_tags,e.sleep_recorded,e.exercise_recorded,e.stress_recorded,e.energy_recorded,e.sleep_quality_recorded);
+  for(const s of payload.sessions)await connection.runAsync(
+   'INSERT OR IGNORE INTO activity_sessions (id,activity_id,day,created_at,helpful,duration_seconds,mood_before,mood_after) VALUES (?,?,?,?,?,?,?,?)',
+   s.id,s.activity_id,s.day,s.created_at,s.helpful,s.duration_seconds,s.mood_before,s.mood_after);
+  const p=payload.preferences;
+  await connection.runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities) VALUES (1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities',p.focus,p.max_minutes,p.weekly_checkins,p.weekly_activities);
+ });
+ const afterEntries=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM mood_entries');
+ const afterSessions=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM activity_sessions');
+ return {entriesAdded:Math.max(0,(afterEntries?.count||0)-(beforeEntries?.count||0)),sessionsAdded:Math.max(0,(afterSessions?.count||0)-(beforeSessions?.count||0))};
 }
 
 export async function checkVaultHealth(): Promise<{cipher: string; database: string; journal: string; activities: string; preferences: string; optionalMeasurements:string}> {

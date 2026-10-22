@@ -12,7 +12,7 @@
 - Encrypted SQLite opening resets the cached DB handle if an initialization/retention step fails.
 - Daily input rejects future and expired dates (365-day history window) instead of saving entries that immediately disappear or pollute future averages.
 - Activity duration and optional pre-activity mood are validated, while the session timer stops when completed.
-- Version 0.4.0 / Android versionCode 5 is distinct from earlier releases. This is still experimental until complete feature/device checks pass.
+- Version 0.5.0 / Android versionCode 6 is distinct from earlier releases. This is still experimental until complete feature/device checks pass.
 
 # Mood Insight AI — native Android and iOS
 
@@ -97,3 +97,12 @@ The complete 3-model research comparison remains in `research/model_lab.py`. The
 There is no remote mood service, cloud storage, advertising SDK or analytics. Local retention cleanup runs on app open/use, **not while the app remains closed**. An encrypted backup/export, account recovery, clinical validation, full accessibility audit and original Mood Buster integration are not yet provided. An uninstalled app or lost encryption key may make local data unrecoverable.
 
 The app is for wellbeing education, not a diagnostic/therapeutic or crisis-management device. In emergencies, contact local emergency services.
+
+
+## 0.5.0: personal learning and encrypted backup
+
+- Removed synthetic model predictions from the user-facing app; demo model files remain test fixtures only.
+- Added a per-user on-device next-day experiment trained from consecutive real local check-ins, with a chronological holdout and a simple-baseline comparison. It suppresses the estimate if the holdout does not beat baseline. This is not a clinical tool and does not use ABS aggregates as training data.
+- Added portable encrypted backup: AES-256-GCM with PBKDF2-SHA256, random salt/nonce and strict payload validation. Restore merges missing dates, keeps existing same-day entries and restores preferences.
+- A lost backup passphrase cannot be recovered. Keep the encrypted file and passphrase separately.
+- Stable signing and physical-device tests remain release gates; see ANDROID_SIGNING.md and mobile/DEVICE_TEST_CHECKLIST.md.

@@ -11,11 +11,6 @@ import {
   listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences, checkVaultHealth
 } from './src/data/vault';
 import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
-import type {LinearModel} from './src/ml/linear';
-import {predictNextMood,canPredict} from './src/ml/linear';
-import {predictTreeDemo} from './src/ml/trees';
-import type {TreeArtifact} from './src/ml/trees';
-import treeDemo from './src/ml/trees-demo.json';
 import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
 import {buildEntryInput} from './src/checkin';
 import type {Preferences,Situation} from './src/deep';
@@ -23,7 +18,8 @@ import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
 import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
 import {ActivityExplorer} from './src/ui/Activities';
 import {ResearchApiBridge} from './src/ui/BackendLab';
-import demoModel from './src/ml/demo-model.json';
+import {BackupRestore} from './src/ui/BackupRestore';
+import {evaluatePersonalMood} from './src/ml/personal';
 import appConfig from './app.json';
 
 const C = {
@@ -79,7 +75,7 @@ export default function App() {
   const [ready,setReady] = useState(false);
   const [consented,setConsented] = useState(false);
   const [error,setError] = useState('');
-  const [activeModel,setActiveModel] = useState<'logistic'|'forest'|'tree'>('logistic');
+
   const [featureError,setFeatureError] = useState('');
   const [diagnosing,setDiagnosing] = useState(false);
   const [diagnosticResult,setDiagnosticResult] = useState('');
@@ -202,15 +198,8 @@ export default function App() {
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
-  const modelPrediction = useMemo(() => {
-    if (!canPredict(entries)) return null;
-    try {
-      const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
-      return activeModel==='logistic'
-        ? predictNextMood(demoModel as LinearModel,latest)
-        : predictTreeDemo(treeDemo as TreeArtifact,latest,activeModel);
-    } catch {return null;}
-  },[entries,activeModel]);
+  const currentDay=localDay();
+  const personalModel = useMemo(()=>evaluatePersonalMood(entries,currentDay),[entries,currentDay]);
 
   if (!ready) return <SafeAreaView style={s.center}>
     <ActivityIndicator size="large" color={C.primary}/><Text style={s.muted}>Opening your private space…</Text>
@@ -327,34 +316,20 @@ export default function App() {
               <Text style={s.chartDay}>{new Date(e.day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})}</Text>
             </View>) : <Text style={s.copy}>Your trend will appear after your first check-in.</Text>}
           </View></Card>
-          <Text style={s.h2}>Experimental on-device ML</Text>
-          <Card tint={C.peach}>
-            <Text style={s.kicker}>THREE OFFLINE TRAINED MODELS · SYNTHETIC DEMOS ONLY</Text>
-            <View style={s.chipRow}>
-              {([
-                {id:'logistic',label:'Logistic Regression'},
-                {id:'tree',label:'Decision Tree'},
-                {id:'forest',label:'Random Forest'}
-              ] as const).map(choice=><Pressable key={choice.id}
-                accessibilityRole="button" accessibilityLabel={'ML model '+choice.label}
-                onPress={()=>setActiveModel(choice.id)}
-                style={[s.chip,{width:'auto',paddingHorizontal:12},activeModel===choice.id&&s.chipActive]}>
-                <Text style={[s.chipText,activeModel===choice.id&&{color:C.white}]}>{choice.label}</Text>
-              </Pressable>)}
-            </View>
-            <Text style={s.copy}>Logistic Regression: multinomial scikit-learn synthetic demo. Decision Tree: depth 3. Random Forest: 8 shallow trees. None trained or validated on real Australian participants; no model is clinically reliable.</Text>
-            {modelPrediction ? <>
-              <Text style={s.heroSmall}>Simulated next-day mood: {modelPrediction.predictedMood}/5</Text>
-              <Text style={s.copy}>Example model output only. Trained on artificial examples, not real people. It cannot reliably predict your wellbeing and should not inform health decisions.</Text>
-              {modelPrediction.probabilities.map(p=><View key={p.mood} style={s.sessionRow}>
-                <Text style={[s.small,{width:68}]}>Mood {p.mood}</Text>
-                <View style={{flex:1,height:9,backgroundColor:'#EDE6DE',borderRadius:10}}>
-                  <View style={{width:((p.probability*100).toFixed(1)+'%') as `${number}%`,height:9,backgroundColor:C.primary,borderRadius:10}}/>
-                </View>
-                <Text style={[s.small,{width:50,textAlign:'right'}]}>{(p.probability*100).toFixed(0)}%</Text>
-              </View>)}
-              <Text style={s.small}>{activeModel==='logistic'?'Largest coefficient contribution':'Frequently used decision split'}: {modelPrediction.topFeature}. These are model mechanics, not causal explanations.</Text>
-            </> : <Text style={s.copy}>Add at least 7 mood check-ins and record sleep, movement and stress in your latest check-in to enable the offline demo. Its model is trained only on synthetic examples.</Text>}
+          <Text style={s.h2}>Personal learning experiment</Text>
+          <Card tint={C.lilac}>
+            <Text style={s.kicker}>ON-DEVICE · YOUR OWN RECORDED CHECK-INS</Text>
+            <Text style={s.copy}>This small experimental model learns only from your own consecutive-day entries stored on this phone. It uses an earlier day's mood, sleep, movement and stress to study the next day's recorded mood. It does not upload data.</Text>
+            {personalModel.status==='ready'?<>
+              <Text style={s.heroSmall}>Exploratory next-day mood class: {personalModel.predictedMood}/5</Text>
+              <Text style={s.copy}>Chronological holdout: {Math.round((personalModel.modelAccuracy||0)*100)}% correct versus {Math.round((personalModel.baselineAccuracy||0)*100)}% for a simple baseline across {personalModel.holdout} held-out day pairs.</Text>
+              <Text style={s.copy}>This is a small personal experiment, not a clinical prediction. It appears only after its held-out results beat the baseline; never use it for health decisions.</Text>
+            </>:<>
+              <Text style={s.copy}>{personalModel.message}</Text>
+              {personalModel.modelAccuracy!==null&&personalModel.baselineAccuracy!==null?
+                <Text style={s.sub}>Historical holdout: {Math.round(personalModel.modelAccuracy*100)}% versus {Math.round(personalModel.baselineAccuracy*100)}% baseline, {personalModel.holdout} day pairs.</Text>:null}
+            </>}
+            <Text style={s.footnote}>Australian statistics elsewhere in this app are population context, not individual-level training data. This personal model is not Australian-population-trained or clinically validated.</Text>
           </Card>
           <Text style={s.h2}>Detected associations</Text>
           {patterns.length?patterns.map((p,i)=><Card key={p.id} tint={i%2===0?C.teal:C.peach}>
@@ -393,6 +368,7 @@ export default function App() {
             {diagnosticResult ? <Text selectable style={[s.copy,{color:diagnosticResult.startsWith('PASS')?C.primary:C.red}]}>{diagnosticResult}</Text> : null}
             <Text style={s.footnote}>App version: {appConfig.expo.version}. If a check fails, share only the error text (not private notes).</Text>
           </Card>
+          <BackupRestore refresh={refresh}/>
           <ResearchApiBridge entries={entries}/>
           <Card><Text style={s.h3}>12-month retention</Text>
             <Text style={s.copy}>Entries older than 365 days are automatically purged whenever the encrypted vault is opened or used. The app does not run a background deletion task while closed.</Text>
