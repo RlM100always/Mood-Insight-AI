@@ -5,7 +5,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex,hexToBytes,utf8ToBytes} from '@noble/hashes/utils.js';
 import type {Entry,Session} from './types';
 import type {Preferences} from './deep.ts';
-import {CONTEXT_TAGS} from './deep';
+import {CONTEXT_TAGS} from './deep.ts';
 import {localDay} from './insights.ts';
 export type BackupPayload={schema:'mood-insight-backup';version:1;exported_at:string;entries:Entry[];sessions:Session[];preferences:Preferences};
 type Envelope={format:'mood-insight-encrypted-backup';version:1;cipher:'AES-256-GCM';kdf:'PBKDF2-SHA256';iterations:number;salt:string;nonce:string;ciphertext:string};
