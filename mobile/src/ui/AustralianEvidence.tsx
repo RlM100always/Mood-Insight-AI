@@ -83,6 +83,10 @@ export function AustralianEvidence(){
       onPress={()=>void Linking.openURL(abs.source_url)}>
       <Text style={st.buttonText}>Open official ABS source ↗</Text>
     </Pressable>
+    <Pressable accessibilityRole="button" onPress={()=>void Linking.openURL('https://www.abs.gov.au/statistics/microdata-tablebuilder/available-microdata-tablebuilder/national-study-mental-health-and-wellbeing')}>
+      <Text style={{color:colors.main,fontWeight:'800'}}>ABS microdata access information ↗</Text>
+    </Pressable>
+    <Text style={st.sub}>Detailed microdata is controlled access, and these published aggregates are not suitable for training a daily personal mood model.</Text>
     <Pressable accessibilityRole="button"
       onPress={()=>setExpanded(!expanded)} style={{padding:10}}>
       <Text style={{color:colors.main,fontWeight:'900'}}>Data methods and limitations {expanded?'−':'+'}</Text>

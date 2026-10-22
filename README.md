@@ -37,3 +37,8 @@ See [mobile/README.md](mobile/README.md). The Android APK and iOS simulator work
 Real participant dataset and ethical approval, evaluation against actual participant-held-out mood logs, physical Android/iPhone testing, real Mood Buster source integration and app store publication. No fabricated model accuracies or user-study findings.
 
 Non-clinical educational tool. Not a replacement for health professionals or emergency services.
+
+
+## Release readiness
+
+Version 0.5.0 removes synthetic model output from the user-facing UI, adds personal on-device learning and passphrase-encrypted backup/restore. Read SECURITY_AUDIT.md, ANDROID_SIGNING.md, research/README.md and mobile/DEVICE_TEST_CHECKLIST.md. Australian ABS aggregates are contextual only, not individual training data. Production signing, physical-device tests and an independent security review remain required.

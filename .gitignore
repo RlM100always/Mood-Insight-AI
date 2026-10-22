@@ -13,3 +13,8 @@ metrics.json
 .DS_Store
 node_modules/
 coverage/
+
+research/output/
+research/approved-data/
+research/models/
+*.parquet

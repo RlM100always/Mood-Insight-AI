@@ -63,11 +63,25 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data",type=Path,required=True,help="Local confidential participant data CSV")
     p.add_argument("--out",type=Path,required=True,help="Aggregate metadata JSON, never raw data")
-    p.add_argument("--approved",action="store_true",help="Attest the data's licence, ethics and consent permit this research")
+    p.add_argument("--approved",action="store_true",help="Human attestation that the data source permits this research")
+    p.add_argument("--source-id",required=True,help="Non-sensitive approved dataset identifier")
+    p.add_argument("--ethics-reference",required=True,help="Approved ethics reference; do not use participant identifiers")
+    p.add_argument("--consent-confirmed",action="store_true",help="Attest consent covers this secondary use")
+    p.add_argument("--licence-confirmed",action="store_true",help="Attest licence/data-custodian terms permit this use")
+    p.add_argument("--australian-sample-confirmed",action="store_true",help="Attest participants are from the claimed Australian sample")
     opts=p.parse_args()
-    if not opts.approved:
-        p.error("Explicit --approved is required after independently verifying ethics/consent and data licence")
+    if not opts.approved or not opts.consent_confirmed or not opts.licence_confirmed or not opts.australian_sample_confirmed:
+        p.error("Required human attestations: --approved --consent-confirmed --licence-confirmed --australian-sample-confirmed; verify ethics/consent and licence independently")
+    if not opts.source_id.strip() or not opts.ethics_reference.strip():
+        p.error("A non-sensitive --source-id and --ethics-reference are required")
     report=check_daily_research_dataset(pd.read_csv(opts.data))
+    report["source_id"]=opts.source_id.strip()
+    report["ethics_reference"]=opts.ethics_reference.strip()
+    report["consent_attested"]=True
+    report["licence_attested"]=True
+    report["australian_sample_attested"]=True
+    report["warning"] += " Source, consent, licence, ethics and Australian sample are human attestations; this script does not independently verify them."
+    opts.out.parent.mkdir(parents=True,exist_ok=True)
     opts.out.write_text(json.dumps(report,indent=2)+"\n",encoding="utf8")
     print("Aggregate research-data preflight passed. No participant IDs were exported.")
 
