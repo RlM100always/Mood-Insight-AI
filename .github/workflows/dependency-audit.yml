@@ -38,9 +38,15 @@ jobs:
       - name: Resolve mobile dependency tree
         working-directory: mobile
         run: npm install --no-audit --no-fund
-      - name: Audit mobile dependencies
+      - name: Inspect transitive dependency versions
         working-directory: mobile
-        run: npm audit --audit-level=high
+        run: npm ls braces node-forge --all || true
+      - name: Capture npm audit report
+        working-directory: mobile
+        shell: bash
+        run: |
+          npm audit --json > npm-audit.json || true
+          node -e 'const r=require("./npm-audit.json"); console.log(JSON.stringify({metadata:r.metadata?.vulnerabilities, vulnerablePackages:Object.entries(r.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable}))},null,2))'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -50,3 +56,13 @@ jobs:
         run: pip-audit -r backend/requirements.txt
       - name: Audit research Python dependencies
         run: pip-audit -r research/requirements.txt
+      - name: Enforce mobile dependency audit threshold
+        working-directory: mobile
+        run: npm audit --audit-level=high
+      - name: Upload dependency audit diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-report
+          path: mobile/npm-audit.json
+          if-no-files-found: ignore
