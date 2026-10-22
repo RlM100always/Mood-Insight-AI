@@ -53,7 +53,7 @@ jobs:
           fi
       - name: Install JavaScript dependencies
         working-directory: mobile
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Audit mobile dependencies before production build
         working-directory: mobile
         run: npm audit --audit-level=high

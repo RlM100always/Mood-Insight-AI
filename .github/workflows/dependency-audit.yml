@@ -38,7 +38,7 @@ jobs:
           node-version: '22'
       - name: Resolve mobile dependency tree
         working-directory: mobile
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Inspect transitive dependency versions
         working-directory: mobile
         run: npm ls braces node-forge --all || true
