@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {performance} from 'node:perf_hooks';
 import {evaluatePersonalMood} from '../src/ml/personal.ts';
 function fixture(count=100){
  const out=[];
@@ -25,4 +26,13 @@ test('model refuses sparse, skipped, missing-day and stale check-ins',()=>{
 });
 test('personal experiment never mutates local entries',()=>{
  const logs=fixture(),before=JSON.stringify(logs);evaluatePersonalMood(logs,logs.at(-1).day);assert.equal(JSON.stringify(logs),before);
+});
+
+test('personal model stays responsive on the full 365-day retention window',()=>{
+ const logs=fixture(365);
+ const start=performance.now();
+ const report=evaluatePersonalMood(logs,logs.at(-1).day);
+ const elapsed=performance.now()-start;
+ assert.ok(report.pairs>=300);
+ assert.ok(elapsed<2500,`365-day personal model took ${elapsed.toFixed(0)}ms (budget 2500ms)`);
 });
