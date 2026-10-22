@@ -80,7 +80,8 @@ This APK is a native React Native Android test build, built from commit
 
 **IMPORTANT:** This is an **experimental pre-release**, not a verified production app.
 A successful APK compilation does not guarantee the app launches or works on every
-Android handset. The GitHub Actions emulator smoke test passed for this exact APK. It is still NOT a real-\nphone verification. Use fictional test
+Android handset. The GitHub Actions emulator smoke test passed for this exact APK. It is still NOT a real-
+phone verification. Use fictional test
 data only until startup, encryption and save/reopen are independently validated.
 
 The on-device ML demo was trained on synthetic data only. It is not a clinical
@@ -88,7 +89,13 @@ or validated mental-health prediction tool.
 
 **Install:** Download the APK on an Android device, open it from Files/Downloads,
 and approve installation from that source if Android asks. Do not bypass Android
-security warnings. It does not install on an iPhone.\n\n**Update warning:** GitHub-hosted builds can use ephemeral Android signing keys.\nAn older APK may refuse in-place update (INSTALL_FAILED_UPDATE_INCOMPATIBLE).\nDo not uninstall if you need local mood records: encrypted backup/export is not\navailable yet. Set up stable private signing credentials before relying on updates.
+security warnings. It does not install on an iPhone.
+
+**Update warning:** GitHub-hosted builds can use ephemeral Android signing keys.
+An older APK may refuse in-place update (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+Version 0.5.0 supports a passphrase-encrypted backup; export and verify it before
+changing devices or uninstalling. Keep the backup file and passphrase separately.
+Set up stable private signing credentials before relying on in-place updates.
 EOF
 
 if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then

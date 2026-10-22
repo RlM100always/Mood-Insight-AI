@@ -1,0 +1,134 @@
+name: Production Android release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Version tag, e.g. v0.5.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-android-release
+  cancel-in-progress: false
+
+jobs:
+  build-test-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Require stable signing and a new version tag
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo "::error::Run this workflow from main."; exit 1; }
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Use a tag like v0.5.0."; exit 1; }
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [[ -n "${!name}" ]] || { echo "::error::Missing required private signing secret: $name"; exit 1; }
+          done
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release tag already exists; use a new version."
+            exit 1
+          fi
+      - name: Install JavaScript dependencies
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+      - name: Typecheck, test and bundle
+        working-directory: mobile
+        run: |
+          npm run typecheck
+          npm test
+          npm run bundle:android
+      - name: Generate native Android project
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install --non-interactive
+      - name: Configure private stable signing
+        working-directory: mobile
+        run: bash scripts/configure-android-signing.sh
+      - name: Build release APK
+        working-directory: mobile
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon --stacktrace assembleRelease
+      - name: Verify stable APK signature and size
+        working-directory: mobile
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)
+          test -s "$apk"
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          keytool -list -v -keystore android/app/mood-insight-upload.jks -alias "$ANDROID_KEY_ALIAS" -storepass "$ANDROID_KEYSTORE_PASSWORD" > "$RUNNER_TEMP/keystore-cert.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/apk-cert.txt"
+          expected=$(awk '/SHA256:/{print $2; exit}' "$RUNNER_TEMP/keystore-cert.txt" | tr -d ':')
+          actual=$(awk '/Signer #1 certificate SHA-256 digest:/{print $NF; exit}' "$RUNNER_TEMP/apk-cert.txt" | tr -d ':')
+          [[ -n "$expected" && "$expected" == "$actual" ]] || { echo "::error::APK signing certificate does not match the configured keystore."; exit 1; }
+          size=$(stat -c%s "$apk")
+          echo "APK size: $size bytes"
+          (( size < 100*1024*1024 )) || { echo "::error::APK exceeds 100 MiB release budget."; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/apk"
+          cp "$apk" "$GITHUB_WORKSPACE/apk/Mood-Insight-AI.apk"
+          sha256sum "$GITHUB_WORKSPACE/apk/Mood-Insight-AI.apk" | tee "$GITHUB_WORKSPACE/apk/SHA256SUMS.txt"
+      - name: Run Android emulator feature tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-linux-hw-accel: false
+          disable-animations: true
+          script: bash mobile/scripts/android-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-android-test-diagnostics
+          path: |
+            android-smoke.png
+            android-diagnostics.txt
+            window.xml
+          if-no-files-found: ignore
+      - name: Publish stable-signed production release after all checks pass
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          ## Mood Insight AI $RELEASE_TAG
+
+          Stable-signed Android APK. This release was published only after source checks, unit/regression tests, APK certificate verification, APK-size budget and Android emulator feature smoke passed.
+
+          This is not a claim of clinical validation. The personal mood experiment learns from the individual user's own on-device check-ins; it is not trained on individual-level Australian population data. Australian ABS aggregates are contextual only.
+
+          Before using real personal records on a new device, export an encrypted backup and keep its passphrase separately. Physical-device tests and independent security/privacy review are still required.
+          EOF
+          gh release create "$RELEASE_TAG" "$GITHUB_WORKSPACE/apk/Mood-Insight-AI.apk" "$GITHUB_WORKSPACE/apk/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Mood Insight AI $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
