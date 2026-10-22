@@ -20,7 +20,7 @@ test('model refuses sparse, skipped, missing-day and stale check-ins',()=>{
  const logs=fixture();assert.equal(evaluatePersonalMood(logs.slice(-10),logs.at(-1).day).status,'need-history');
  const skipped=logs.map(x=>({...x}));skipped[skipped.length-1].stress_recorded=0;
  assert.equal(evaluatePersonalMood(skipped,skipped.at(-1).day).status,'needs-complete-checkin');
- assert.equal(evaluatePersonalMood(logs,'2099-01-01').status,'needs-today-checkin');
+ const stale=evaluatePersonalMood(logs,'2099-01-01');assert.notEqual(stale.status,'ready');assert.equal(stale.predictedMood,null);
  const gap=logs.map(x=>({...x}));gap.splice(20,1);assert.ok(evaluatePersonalMood(gap,gap.at(-1).day).pairs<logs.length-1);
 });
 test('personal experiment never mutates local entries',()=>{

@@ -327,7 +327,7 @@ export default function App() {
             </>:<>
               <Text style={s.copy}>{personalModel.message}</Text>
               {personalModel.modelAccuracy!==null&&personalModel.baselineAccuracy!==null?
-                <Text style={s.sub}>Historical holdout: {Math.round(personalModel.modelAccuracy*100)}% versus {Math.round(personalModel.baselineAccuracy*100)}% baseline, {personalModel.holdout} day pairs.</Text>:null}
+                <Text style={s.small}>Historical holdout: {Math.round(personalModel.modelAccuracy*100)}% versus {Math.round(personalModel.baselineAccuracy*100)}% baseline, {personalModel.holdout} day pairs.</Text>:null}
             </>}
             <Text style={s.footnote}>Australian statistics elsewhere in this app are population context, not individual-level training data. This personal model is not Australian-population-trained or clinically validated.</Text>
           </Card>

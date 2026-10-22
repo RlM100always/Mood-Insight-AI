@@ -2,7 +2,7 @@ import {gcm} from '@noble/ciphers/aes.js';
 import {randomBytes} from '@noble/ciphers/utils.js';
 import {pbkdf2Async} from '@noble/hashes/pbkdf2.js';
 import {sha256} from '@noble/hashes/sha2.js';
-import {bytesToHex,hexToBytes,utf8ToBytes,bytesToUtf8} from '@noble/hashes/utils.js';
+import {bytesToHex,hexToBytes,utf8ToBytes} from '@noble/hashes/utils.js';
 import type {Entry,Session} from './types';
 import type {Preferences} from './deep';
 import {CONTEXT_TAGS} from './deep';
@@ -12,6 +12,15 @@ type Envelope={format:'mood-insight-encrypted-backup';version:1;cipher:'AES-256-
 const ITERATIONS=310_000,MAX_FILE_CHARS=10_000_000,MAX_ENTRIES=400,MAX_SESSIONS=5000;
 const DAY_MS=86_400_000,RETENTION_MS=365*DAY_MS,AAD=utf8ToBytes('MoodInsightEncryptedBackup:v1');
 function fail(message:string):never{throw new Error(message);}
+function decodeUtf8(bytes:Uint8Array):string{
+ let out='',i=0;
+ while(i<bytes.length){const a=bytes[i++];if(a<0x80){out+=String.fromCharCode(a);continue;}
+  if((a&0xe0)===0xc0){if(i>=bytes.length)throw new Error('Invalid UTF-8');const b=bytes[i++];out+=String.fromCharCode(((a&0x1f)<<6)|(b&0x3f));continue;}
+  if((a&0xf0)===0xe0){if(i+1>=bytes.length)throw new Error('Invalid UTF-8');const b=bytes[i++],c=bytes[i++];out+=String.fromCharCode(((a&0x0f)<<12)|((b&0x3f)<<6)|(c&0x3f));continue;}
+  if((a&0xf8)===0xf0){if(i+2>=bytes.length)throw new Error('Invalid UTF-8');const b=bytes[i++],c=bytes[i++],d=bytes[i++];const cp=(((a&7)<<18)|((b&0x3f)<<12)|((c&0x3f)<<6)|(d&0x3f))-0x10000;out+=String.fromCharCode(0xd800+(cp>>10),0xdc00+(cp&0x3ff));continue;}
+  throw new Error('Invalid UTF-8');
+ }return out;
+}
 function validDay(day:unknown):day is string{
  if(typeof day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(day))return false;
  const parsed=new Date(day+'T12:00:00');return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===day;
@@ -65,6 +74,6 @@ export async function decryptBackup(raw:string,passphrase:string):Promise<Backup
   if(e.format!=='mood-insight-encrypted-backup'||e.version!==1||e.cipher!=='AES-256-GCM'||e.kdf!=='PBKDF2-SHA256'||e.iterations!==ITERATIONS||
    !/^[0-9a-f]{32}$/.test(e.salt)||!/^[0-9a-f]{24}$/.test(e.nonce)||typeof e.ciphertext!=='string'||!/^(?:[0-9a-f]{2}){16,5000000}$/.test(e.ciphertext))fail('Backup format is invalid or unsupported.');
   const key=await pbkdf2Async(sha256,utf8ToBytes(passphrase),hexToBytes(e.salt),{c:ITERATIONS,dkLen:32});
-  return validateBackupPayload(JSON.parse(bytesToUtf8(gcm(key,hexToBytes(e.nonce),AAD).decrypt(hexToBytes(e.ciphertext)))));
+  return validateBackupPayload(JSON.parse(decodeUtf8(gcm(key,hexToBytes(e.nonce),AAD).decrypt(hexToBytes(e.ciphertext)))));
  }catch{fail('Could not decrypt this backup. Check the passphrase and file integrity. Your current data was not changed.');}
 }
