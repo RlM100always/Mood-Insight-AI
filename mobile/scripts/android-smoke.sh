@@ -66,8 +66,11 @@ for node in ET.parse('window.xml').getroot().iter():
         bounds=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
         if bounds:
             x1,y1,x2,y2=map(int,bounds.groups())
-            print(f'{(x1+x2)//2} {(y1+y2)//2}')
-            sys.exit(0)
+            # React Native can expose off-screen controls with zero-sized bounds.
+            # Do not tap (0, 0); let find_and_tap scroll until the control is visible.
+            if x2 > x1 and y2 > y1:
+                print(f'{(x1+x2)//2} {(y1+y2)//2}')
+                sys.exit(0)
 raise SystemExit('Accessibility label not visible: '+needle)
 PY
 }
