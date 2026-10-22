@@ -77,8 +77,10 @@ export function ResearchApiBridge({entries}:Props){
     if(!sharing)throw new Error('Confirm explicit consent to send this one check-in.');
     const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
     if(!latest)throw new Error('You must save an on-device mood check-in first.');
+    if([latest.sleep_recorded,latest.exercise_recorded,latest.stress_recorded,latest.energy_recorded,latest.sleep_quality_recorded].some(flag=>flag!==1))
+      throw new Error('This check-in has skipped measurements. To sync it, first record sleep, movement, stress, energy and sleep quality. The bridge never sends guessed defaults.');
     if(!token)throw new Error('Create/login to your backend account first.');
-    // No note or personal context is transferred, only numerical features and date.
+    // No note or personal context is transferred, only explicitly recorded numerical features and date.
     const result=await apiCall(withOrigin(),'/log_mood','POST',session.current,{
       day:latest.day,mood:latest.mood,stress:latest.stress,
       sleep_hours:latest.sleep_hours,exercise_min:latest.exercise_min,
@@ -99,6 +101,8 @@ export function ResearchApiBridge({entries}:Props){
     if(!sharing)throw new Error('Enable explicit consent to send numerical check-in details.');
     const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
     if(!latest)throw new Error('Save a local check-in first.');
+    if([latest.sleep_recorded,latest.exercise_recorded,latest.stress_recorded].some(flag=>flag!==1))
+      throw new Error('To request server recommendations, record sleep, movement and stress in this check-in first. Skipped fields are not sent as defaults.');
     const result=await apiCall(withOrigin(),'/recommend','POST',session.current,{
       mood:latest.mood,stress:latest.stress,
       sleep_hours:latest.sleep_hours,exercise_min:latest.exercise_min

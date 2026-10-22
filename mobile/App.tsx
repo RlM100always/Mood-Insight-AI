@@ -231,7 +231,7 @@ export default function App() {
           <Primary label="Retry secure setup" action={()=>{setError('');setReady(false);void boot();}}/>
         </Card> : null}
         <Text style={s.h2}>Your information stays on this phone.</Text>
-        <Text style={s.copy}>Mood, sleep, movement, stress and journal notes are stored in a SQLCipher AES-256 encrypted SQLite database. Its random key is protected by the device keychain/keystore. No account, ad tracking, analytics or cloud mood sync is included. Data older than 365 days is removed when you next open/use the app.</Text>
+        <Text style={s.copy}>Your check-ins and journal are stored in a SQLCipher AES-256 encrypted database; its random key is protected by the device keychain/keystore. No account is required, and the app has no ad tracking or analytics. By default, records stay on this phone. The optional research backend is off unless you open it and explicitly send data; notes and context tags are never uploaded. Data older than 365 days is removed when you next open/use the app.</Text>
         <Text style={s.copy}>Recommendations support general wellbeing only. They cannot diagnose, provide therapy or manage emergencies. In immediate danger, contact local emergency services.</Text>
         <Pressable accessibilityRole="checkbox" accessibilityState={{checked:privacyAccepted}}
           onPress={()=>setPrivacyAccepted(!privacyAccepted)} style={s.consent}>
@@ -354,7 +354,7 @@ export default function App() {
                 <Text style={[s.small,{width:50,textAlign:'right'}]}>{(p.probability*100).toFixed(0)}%</Text>
               </View>)}
               <Text style={s.small}>{activeModel==='logistic'?'Largest coefficient contribution':'Frequently used decision split'}: {modelPrediction.topFeature}. These are model mechanics, not causal explanations.</Text>
-            </> : <Text style={s.copy}>Add at least 7 mood check-ins to enable the offline research demo. Its model is trained only on synthetic examples.</Text>}
+            </> : <Text style={s.copy}>Add at least 7 mood check-ins and record sleep, movement and stress in your latest check-in to enable the offline demo. Its model is trained only on synthetic examples.</Text>}
           </Card>
           <Text style={s.h2}>Detected associations</Text>
           {patterns.length?patterns.map((p,i)=><Card key={p.id} tint={i%2===0?C.teal:C.peach}>
@@ -384,7 +384,7 @@ export default function App() {
         {tab==='Privacy'?<>
           <Heading kicker="Data control" title="Your data. Your choice." description="A simple privacy promise you can verify."/>
           <Card tint={C.teal}><Text style={s.h3}>Encrypted on your phone</Text>
-            <Text style={s.copy}>Native SQLCipher SQLite encrypts entries using AES-256. Your randomly generated database key is held by platform SecureStore. The app does not call any mood-data API or collect telemetry.</Text>
+            <Text style={s.copy}>Native SQLCipher SQLite encrypts entries using AES-256. Your randomly generated database key is held by platform SecureStore. No mood data is sent by default. The optional research bridge can send explicitly selected numerical check-ins only after you enable it and confirm consent; journal notes and context tags remain local.</Text>
           </Card>
           <Card>
             <Text style={s.h3}>Run native feature diagnostics</Text>
