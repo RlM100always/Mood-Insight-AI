@@ -25,7 +25,7 @@ test('payload validation rejects duplicate days, invalid preferences and future 
 
 test('backup rejects weak passphrases, malformed envelopes and oversized payloads',async()=>{
  await assert.rejects(()=>encryptBackup(payload,'short'),/at least 12 characters/);
- await assert.rejects(()=>decryptBackup('not a backup','short'),/at least 12 characters/);
+ await assert.rejects(()=>decryptBackup('x'.repeat(100),'short'),/at least 12 characters/);
  const malformed={format:'mood-insight-encrypted-backup',version:1,cipher:'AES-256-GCM',
    kdf:'PBKDF2-SHA256',iterations:310000,salt:'0'.repeat(32),nonce:'0'.repeat(24),ciphertext:'not-hex'};
  await assert.rejects(()=>decryptBackup(JSON.stringify(malformed),'correct horse battery staple 2026'),/Could not decrypt/);
@@ -36,5 +36,5 @@ test('backup validation rejects malformed optional provenance and activity durat
  assert.throws(()=>validateBackupPayload({...payload,entries:[{...payload.entries[0],sleep_recorded:2}]}),/invalid or expired/);
  assert.throws(()=>validateBackupPayload({...payload,entries:[{...payload.entries[0],context_tags:'UnapprovedTag'}]}),/invalid or expired/);
  assert.throws(()=>validateBackupPayload({...payload,sessions:[{...payload.sessions[0],duration_seconds:7201}]}),/invalid activity history/);
- assert.throws(()=>validateBackupPayload({...payload,sessions:[...payload.sessions,{...payload.sessions[0],id:'session-2'}]}),/invalid activity history/);
+ assert.throws(()=>validateBackupPayload({...payload,sessions:[...payload.sessions,{...payload.sessions[0],id:'session-1'}]}),/invalid activity history/);
 });
