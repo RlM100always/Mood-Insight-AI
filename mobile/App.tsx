@@ -80,7 +80,7 @@ export default function App() {
   const [diagnosing,setDiagnosing] = useState(false);
   const [diagnosticResult,setDiagnosticResult] = useState('');
   const [tab,setTab] = useState<Tab>('Today');
-  const scrollRef = useRef<ScrollView|null>(null);
+  const scrollRef = useRef<any>(null);
   const navigateTab = (next:Tab) => {
     setTab(next);
     scrollRef.current?.scrollTo({y:0,animated:false});
