@@ -1,2 +1,2 @@
 Flask>=3.0,<4
-cryptography>=43,<50
+cryptography>=50.0.0,<51
