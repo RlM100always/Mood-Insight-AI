@@ -46,7 +46,7 @@ export function BackupRestore({refresh}:Props){
       catch(e){Alert.alert('Restore failed',e instanceof Error?e.message:'Your existing records were not intentionally replaced.');}
       finally{setBusy(false);}
     })()}]);
-  }catch(e){Alert.alert('Backup could not be restored',e instanceof Error?e.message:'Please try again.');}
+  }catch(e){setPassphrase('');Alert.alert('Backup could not be restored',e instanceof Error?e.message:'Please try again.');}
   finally{setBusy(false);}
  };
  return <Panel>
