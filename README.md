@@ -6,9 +6,9 @@ The actual deliverable is the **native Android/iOS React Native app**, in [mobil
 
 ### [⬇ DOWNLOAD THE NEWEST EXPERIMENTAL APK — GitHub Releases](https://github.com/RlM100always/Mood-Insight-AI/releases)
 
-_Do **not** install the older `05bd547` release expecting deep features. Choose a release whose GitHub Actions run passed the full emulator test. v0.3.1 includes runtime fixes. The current build is experimental and a phone runtime test is still required. Back up any existing journal data before uninstalling: uninstalling deletes local data._
+_Do **not** install the older `05bd547` release expecting deep features. Choose a release whose GitHub Actions run passed the full emulator test. v0.4.0 adds situation-aware activity plans and personalised next-step guidance. The current build is experimental and a phone runtime test is still required. Back up any existing journal data before uninstalling: uninstalling deletes local data._
 
-Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If no new APK appears after a change, its feature tests may have failed. Review the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml) completes. The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
+Go to **Releases** → open the newest **Android experimental APK** → expand **Assets** → tap **Mood-Insight-AI.apk**. The APK downloads directly (no ZIP extraction). If no new APK appears after a change, its feature tests may have failed. Review the [APK publishing workflow](https://github.com/RlM100always/Mood-Insight-AI/actions/workflows/publish-android-apk.yml). The build is a **pre-release**, and Android emulator/physical phone operation must still be tested.
 
 ### Verified Australian research data and screenshot architecture
 
@@ -30,7 +30,7 @@ See [mobile/README.md](mobile/README.md). The Android APK and iOS simulator work
 
 - New releases are gated on a **successful Android emulator feature test**, not compilation alone. Failed test builds remain Actions artifacts for debugging.
 - Stable APK updates require your own private Android signing secrets; see [Android signing setup](ANDROID_SIGNING.md). Older ephemeral-key APKs may not be upgrade-compatible.
-- A new `0.3.1` Android APK and its deeper journal/activity/progress smoke test have been submitted to GitHub Actions; use [Actions](https://github.com/RlM100always/Mood-Insight-AI/actions) for live verified status, not assumptions.
+- A new `0.4.0` build with situation-aware plans and global support access has been submitted to GitHub Actions; use [Actions](https://github.com/RlM100always/Mood-Insight-AI/actions) for live verified status, not assumptions.
 - [Physical-device QA checklist](DEVICE_TESTING.md) and [Australian individual-level data access/preflight](research/AU_PARTICIPANT_DATA_ACCESS.md) explain what independent evidence is still required.
 
 ### Outstanding

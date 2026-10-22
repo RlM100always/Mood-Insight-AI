@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULT_PREFERENCES,recommendationPlan,filterJournal,review} from '../src/deep.ts';
+import {DEFAULT_PREFERENCES,recommendationPlan,filterJournal,review,suggestedNextStep} from '../src/deep.ts';
 function entry(date,mood=3){
  return {id:date,day:date,mood,stress:4,energy:3,sleep_quality:3,sleep_hours:6.5,
  exercise_min:0,context_tags:'Study',note:'study journal',created_at:0,updated_at:0};
