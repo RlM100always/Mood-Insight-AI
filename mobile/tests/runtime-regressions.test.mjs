@@ -27,3 +27,23 @@ test('quick check-in marks skipped measurements as unknown rather than observed 
   assert.ok(app.includes('Choose a mood to save'));
   assert.ok(app.includes('optional'));
 });
+
+test('tab navigation resets the shared content scroll position',()=>{
+  const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');
+  assert.ok(app.includes('useRef, useState'));
+  assert.ok(app.includes('const scrollRef = useRef<any>(null)'));
+  assert.ok(app.includes('scrollRef.current?.scrollTo({y:0,animated:false})'));
+  assert.ok(app.includes('ref={scrollRef}'));
+  assert.ok(app.includes('onPress={()=>navigateTab(n.label)}'));
+});
+
+test('Android smoke exercises encrypted backup export, restore and failure cases',()=>{
+  const script=readFileSync(new URL('../scripts/android-smoke.sh',import.meta.url),'utf8');
+  const fixture=readFileSync(new URL('../scripts/create-e2e-backup.mjs',import.meta.url),'utf8');
+  assert.ok(script.includes('PASS: encrypted backup export completed through the native share sheet'));
+  assert.ok(script.includes('WrongPasswordForE2E2026'));
+  assert.ok(script.includes('mood-insight-e2e-backup-tampered.mibak'));
+  assert.ok(script.includes('E2E_SHOULD_NOT_OVERWRITE_LOCAL_ENTRY'));
+  assert.ok(script.includes('E2E_RESTORED_ENTRY_CHECK'));
+  assert.ok(fixture.includes('encryptBackup(payload,passphrase)'));
+});

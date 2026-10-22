@@ -3,6 +3,8 @@ set -Eeuo pipefail
 # Real smoke checks: keep assertions. Do not label an APK working merely because it installs.
 PACKAGE=app.moodinsight.mobile
 DIAG=android-diagnostics.txt
+# Pin every adb command to the emulator selected by android-emulator-runner.
+export ANDROID_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 : > "$DIAG"
 
 dump_diagnostics() {
@@ -28,9 +30,31 @@ on_exit(){
 }
 trap 'on_exit "$LINENO"' EXIT
 
+wait_for_device_ready(){
+  local state boot
+  for attempt in $(seq 1 45); do
+    adb start-server >/dev/null 2>&1 || true
+    state=$(adb get-state 2>/dev/null || true)
+    if [[ "$state" == "device" ]]; then
+      boot=$(adb shell getprop sys.boot_completed 2>/dev/null || true)
+      if [[ "$boot" == "1" ]]; then return 0; fi
+    fi
+    adb reconnect offline >/dev/null 2>&1 || true
+    echo "Waiting for Android emulator readiness ($attempt/45)" >> "$DIAG"
+    sleep 2
+  done
+  echo "Android emulator did not become ready after 90 seconds" >&2
+  return 1
+}
+
 apk=$(find apk -type f -name '*.apk' | head -n 1)
 if ! test -s "$apk"; then echo "APK artifact not found" >&2; exit 1; fi
-adb wait-for-device
+wait_for_device_ready
+test -s mobile/e2e-restore-fixture.mibak || { echo "Encrypted E2E restore fixture is missing" >&2; exit 1; }
+test -s mobile/e2e-restore-fixture-tampered.mibak || { echo "Encrypted E2E integrity fixture is missing" >&2; exit 1; }
+adb shell mkdir -p /sdcard/Download
+adb push mobile/e2e-restore-fixture.mibak /sdcard/Download/mood-insight-e2e-backup.mibak >> "$DIAG" 2>&1
+adb push mobile/e2e-restore-fixture-tampered.mibak /sdcard/Download/mood-insight-e2e-backup-tampered.mibak >> "$DIAG" 2>&1
 adb install -r "$apk"
 adb logcat -c || true
 adb shell input keyevent 82 || true
@@ -39,6 +63,8 @@ adb shell am start -W -n "$PACKAGE/.MainActivity"
 echo "APK installed and launch requested; waiting for React Native UI to become ready..."
 
 capture(){
+  # Never let a failed hierarchy dump reuse a stale local XML snapshot.
+  rm -f window.xml
   timeout 25s adb shell uiautomator dump /sdcard/window.xml >> "$DIAG" 2>&1 || return 1
   timeout 15s adb exec-out cat /sdcard/window.xml > window.xml 2>> "$DIAG" || return 1
   test -s window.xml
@@ -53,6 +79,31 @@ wait_for_text(){
   done
   echo "Expected UI not found: $target" >&2
   return 1
+}
+
+# A React Native ScrollView can contain the correct heading below the visible
+# viewport. Search the real accessibility tree while scrolling instead of
+# failing merely because the heading is off-screen.
+wait_for_text_while_scrolling(){
+  target=$1
+  for attempt in $(seq 1 12); do
+    capture || true
+    if test -s window.xml && grep -Fq "$target" window.xml; then return 0; fi
+    echo "Scrolling to locate '$target' ($attempt/12)" | tee -a "$DIAG"
+    adb shell input swipe 490 1500 490 650 400 || true
+    sleep 2
+  done
+  echo "Expected UI not found after scrolling: $target" >&2
+  return 1
+}
+
+# Screens share a native viewport in the test harness. Reset it after switching
+# tabs so a previous screen's scroll position cannot hide the next screen title.
+scroll_to_top(){
+  for attempt in 1 2 3; do
+    adb shell input swipe 490 650 490 1550 350 || true
+    sleep 1
+  done
 }
 tap_label(){
   needle=$1
@@ -101,6 +152,34 @@ find_and_tap(){
   done
   echo "Required control not found after scrolling: $label" >&2
   return 1
+}
+
+enter_backup_passphrase(){
+  local value="$1"
+  find_and_tap "Backup passphrase"
+  adb shell input text "$value"
+  adb shell input keyevent 4 || true
+  sleep 1
+}
+
+open_download_fixture(){
+  local filename="$1"
+  find_and_tap "Choose backup file to restore"
+  sleep 2
+  local coords
+  if coords=$(tap_label "Show roots" 2>> "$DIAG"); then
+    local x y
+    read -r x y <<< "$coords"
+    adb shell input tap "$x" "$y"
+  else
+    # Android DocumentsUI normally puts its navigation drawer at this location.
+    adb shell input tap 55 100
+  fi
+  sleep 2
+  find_and_tap "Downloads"
+  sleep 2
+  find_and_tap "$filename"
+  sleep 3
 }
 find_and_tap "I am 18 or older"
 sleep 2
@@ -166,7 +245,7 @@ for attempt in 1 2 3; do
   sleep 2
 done
 wait_for_text "Small actions, real choices"
-wait_for_text "Three suggestions for right now"
+wait_for_text_while_scrolling "Three suggestions for right now"
 find_and_tap "See guided steps"
 wait_for_text "A simple step-by-step guide"
 find_and_tap "I completed or tried this"
@@ -178,11 +257,13 @@ sleep 2
 echo "PASS: activity feedback control accepted a tap"
 
 find_and_tap "Progress tab"
-wait_for_text "Your wellbeing journey"
+scroll_to_top
+wait_for_text_while_scrolling "Your wellbeing journey"
 echo "PASS: Progress screen and activity goals rendered"
 
 find_and_tap "Privacy tab"
-wait_for_text "Your data. Your choice."
+scroll_to_top
+wait_for_text_while_scrolling "Your data. Your choice."
 find_and_tap "Check app features"
 # Health output may appear below the fold after encryption/storage checks.
 for attempt in $(seq 1 8); do
@@ -197,8 +278,9 @@ echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagn
 adb exec-out screencap -p > android-smoke.png
 echo "ANDROID FEATURE E2E PASS: save, dialog dismiss, encrypted restart persistence, journal edit, guided activity, feedback, progress and storage diagnostics."
 
-# Verify the encrypted backup/restore controls are present without exporting user data
-# or invoking the system file picker on the CI emulator.
+# Exercise export and restore with synthetic records only on this disposable emulator.
+# The fixture includes one new day and a same-day conflict to verify local data wins.
+BACKUP_PASSPHRASE='MoodInsightE2EBackupPassphrase2026'
 for attempt in $(seq 1 8); do
   capture || true
   if test -s window.xml && grep -Fq 'Export encrypted backup' window.xml; then break; fi
@@ -207,4 +289,56 @@ for attempt in $(seq 1 8); do
 done
 grep -Fq 'Export encrypted backup' window.xml || { echo "FAILED: encrypted backup export control not visible" >&2; exit 1; }
 grep -Fq 'Choose backup file to restore' window.xml || { echo "FAILED: encrypted backup restore control not visible" >&2; exit 1; }
-echo "PASS: encrypted backup and restore controls rendered"
+
+find_and_tap "Backup passphrase"
+adb shell input text "$BACKUP_PASSPHRASE"
+adb shell input keyevent 4 || true
+find_and_tap "Confirm backup passphrase"
+adb shell input text "$BACKUP_PASSPHRASE"
+adb shell input keyevent 4 || true
+find_and_tap "Export encrypted backup"
+sleep 3
+adb shell input keyevent 4 || true
+sleep 3
+wait_for_text_while_scrolling "Encrypted backup prepared"
+echo "PASS: encrypted backup export completed through the native share sheet"
+
+# Wrong passphrase must fail before a restore confirmation or any database change.
+enter_backup_passphrase "WrongPasswordForE2E2026"
+open_download_fixture "mood-insight-e2e-backup.mibak"
+wait_for_text "Backup could not be restored"
+find_and_tap "OK"
+sleep 2
+echo "PASS: wrong backup passphrase was rejected"
+
+# A valid fixture adds yesterday's record but must not overwrite today's existing check-in.
+enter_backup_passphrase "$BACKUP_PASSPHRASE"
+open_download_fixture "mood-insight-e2e-backup.mibak"
+wait_for_text "Restore encrypted backup?"
+find_and_tap "Merge backup"
+wait_for_text_while_scrolling "Restore complete: added 1 check-ins and 1 activity records"
+echo "PASS: encrypted backup restored and same-day local entry preserved"
+
+find_and_tap "Journal tab"
+scroll_to_top
+capture
+if grep -Fq 'E2E_SHOULD_NOT_OVERWRITE_LOCAL_ENTRY' window.xml; then
+  echo "FAILED: restore overwrote the existing same-day local journal entry" >&2
+  exit 1
+fi
+wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
+echo "PASS: restored journal record is readable after decrypting on-device"
+
+# Authenticated ciphertext corruption must be rejected without removing the restored record.
+find_and_tap "Privacy tab"
+scroll_to_top
+wait_for_text_while_scrolling "Your data. Your choice."
+enter_backup_passphrase "$BACKUP_PASSPHRASE"
+open_download_fixture "mood-insight-e2e-backup-tampered.mibak"
+wait_for_text "Backup could not be restored"
+find_and_tap "OK"
+sleep 2
+find_and_tap "Journal tab"
+scroll_to_top
+wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
+echo "PASS: corrupted encrypted backup rejected and existing restored data remained"

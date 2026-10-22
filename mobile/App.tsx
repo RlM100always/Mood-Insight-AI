@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, Pressable,
   SafeAreaView, ScrollView, StatusBar as NativeStatusBar,
@@ -80,6 +80,11 @@ export default function App() {
   const [diagnosing,setDiagnosing] = useState(false);
   const [diagnosticResult,setDiagnosticResult] = useState('');
   const [tab,setTab] = useState<Tab>('Today');
+  const scrollRef = useRef<any>(null);
+  const navigateTab = (next:Tab) => {
+    setTab(next);
+    scrollRef.current?.scrollTo({y:0,animated:false});
+  };
   const [entries,setEntries] = useState<Entry[]>([]);
   const [sessions,setSessions] = useState<Session[]>([]);
   const [mood,setMood] = useState<MoodScore|null>(null);
@@ -155,7 +160,7 @@ export default function App() {
     finally {setSaving(false);}
   };
   const edit = (entry: Entry) => {
-    fillEntry(entry);setTab('Today');
+    fillEntry(entry);navigateTab('Today');
   };
   const confirmRemove = (entry: Entry) => Alert.alert(
     'Delete this day?', 'This permanently removes the check-in from this device.', [
@@ -171,7 +176,7 @@ export default function App() {
       {text:'Delete everything',style:'destructive',onPress:()=>void (async()=>{
         try {
           await eraseEverything();setEntries([]);setSessions([]);
-          setConsented(false);setPrivacyAccepted(false);setTab('Today');
+          setConsented(false);setPrivacyAccepted(false);navigateTab('Today');
           setNote('');setDay(localDay());setError('');setFeatureError('');setDiagnosticResult('');setMood(null);setStress(null);setSleep('');setExercise('');setEnergy(null);setSleepQuality(null);setTags([]);setFormInitialized(true);setPreferences(DEFAULT_PREFERENCES);
         } catch(e) {handleError(e);}
       })()}
@@ -236,7 +241,7 @@ export default function App() {
     <StatusBar style="dark"/>
     <View style={s.topBar}><Text style={s.logo}>◡  mood insight</Text><Pill>● ON-DEVICE ONLY</Pill></View>
     <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
         {featureError ? <Card tint="#FFEAE5">
           <Text style={s.error}>A feature could not complete</Text>
           <Text style={s.copy}>{featureError}</Text>
@@ -257,7 +262,7 @@ export default function App() {
             <Text style={s.kicker}>YOUR NEXT SMALL STEP</Text>
             <Text style={s.h3}>{nextStep.title}</Text>
             <Text style={s.copy}>{nextStep.body}</Text>
-            <Primary label={nextStep.buttonLabel} action={()=>{setActivitySituation(nextStep.situation);setTab('Activities');}}/>
+            <Primary label={nextStep.buttonLabel} action={()=>{setActivitySituation(nextStep.situation);navigateTab('Activities');}}/>
             <Text style={s.footnote}>Suggestions are optional and based only on your own local check-ins and activity feedback. They are not diagnoses.</Text>
           </Card>
           <Card>
@@ -271,7 +276,8 @@ export default function App() {
           }}/>
             <Label>YOUR MOOD TODAY</Label>
             <View style={s.moodRow}>{MOODS.map(m=>
-              <Pressable accessibilityRole="button" accessibilityLabel={m.label} key={m.mood}
+              <Pressable accessibilityRole="button" accessibilityLabel={m.label}
+                accessibilityState={{selected:mood===m.mood}} key={m.mood}
                 onPress={()=>setMood(m.mood)} style={[s.mood,mood===m.mood && s.moodSelected]}>
                 <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={s.moodText}>{m.label}</Text>
               </Pressable>)}</View>
@@ -389,7 +395,7 @@ export default function App() {
     <View style={s.tabBar}>{NAV.map(n=><Pressable key={n.label}
       accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
       accessibilityState={{selected:tab===n.label}}
-      onPress={()=>setTab(n.label)} style={s.tabButton}>
+      onPress={()=>navigateTab(n.label)} style={s.tabButton}>
       <Text style={[s.navIcon,tab===n.label&&{color:C.primary}]}>{n.icon}</Text>
       <Text style={[s.navText,tab===n.label&&s.navActive]}>{n.label}</Text>
     </Pressable>)}</View>

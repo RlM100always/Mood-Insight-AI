@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import time
 from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -34,6 +35,9 @@ def create_app(config: dict | None = None) -> Flask:
         AUTH_SECRET=os.environ.get("MOOD_API_SECRET", ""),
         MAX_CONTENT_LENGTH=MAX_BODY,
         TESTING=False,
+        AUTH_RATE_LIMIT_ENABLED=True,
+        AUTH_RATE_LIMIT_ATTEMPTS=8,
+        AUTH_RATE_LIMIT_WINDOW_SECONDS=900,
     )
     if config:
         app.config.update(config)
@@ -60,6 +64,47 @@ def create_app(config: dict | None = None) -> Flask:
         connection.execute("PRAGMA busy_timeout = 10000")
         return connection
 
+    def auth_rate_limited(route: str) -> bool:
+        """Persistent per-IP throttle for account creation and password login."""
+        if not app.config.get("AUTH_RATE_LIMIT_ENABLED", True):
+            return False
+        if app.config.get("TESTING") and not app.config.get("ENFORCE_RATE_LIMITS_IN_TESTS", False):
+            return False
+        now = int(time.time())
+        window = max(1, int(app.config.get("AUTH_RATE_LIMIT_WINDOW_SECONDS", 900)))
+        limit = max(1, int(app.config.get("AUTH_RATE_LIMIT_ATTEMPTS", 8)))
+        ip = (request.remote_addr or "unknown")[:64]
+        with connect() as db:
+            db.execute("DELETE FROM auth_rate_limits WHERE window_start < ?", (now - window * 2,))
+            row = db.execute(
+                "SELECT window_start, attempts FROM auth_rate_limits WHERE ip=? AND route=?",
+                (ip, route),
+            ).fetchone()
+            if row is not None and now - int(row["window_start"]) < window:
+                if int(row["attempts"]) >= limit:
+                    return True
+                db.execute(
+                    "UPDATE auth_rate_limits SET attempts=attempts+1 WHERE ip=? AND route=?",
+                    (ip, route),
+                )
+            else:
+                db.execute(
+                    "INSERT OR REPLACE INTO auth_rate_limits(ip, route, window_start, attempts) VALUES (?,?,?,1)",
+                    (ip, route, now),
+                )
+        return False
+
+    def auth_rate_limit(route: str):
+        def decorate(func):
+            @wraps(func)
+            def wrapped(*args, **kwargs):
+                if auth_rate_limited(route):
+                    wait = max(1, int(app.config.get("AUTH_RATE_LIMIT_WINDOW_SECONDS", 900)))
+                    return jsonify(error="Too many authentication attempts. Try again later."), 429, {"Retry-After": str(wait)}
+                return func(*args, **kwargs)
+            return wrapped
+        return decorate
+
     def init():
         with connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -76,6 +121,9 @@ def create_app(config: dict | None = None) -> Flask:
                 activity_id TEXT NOT NULL, duration_minutes INTEGER NOT NULL,
                 helpful INTEGER, created_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS auth_rate_limits (
+                ip TEXT NOT NULL, route TEXT NOT NULL, window_start INTEGER NOT NULL,
+                attempts INTEGER NOT NULL, PRIMARY KEY(ip, route))""")
 
     def encrypt(data: dict) -> str:
         nonce = os.urandom(12)
@@ -186,12 +234,16 @@ def create_app(config: dict | None = None) -> Flask:
         return jsonify(json.loads(DATA_PATH.read_text(encoding="utf8")))
 
     @app.post("/user")
+    @auth_rate_limit("register")
     def register():
         try:
             values=body()
-            name=str(values["name"]).strip()
-            age=int(values["age"])
-            password=str(values["password"])
+            raw_name=values.get("name")
+            age=values.get("age")
+            password=values.get("password")
+            if not isinstance(raw_name,str) or not isinstance(password,str) or isinstance(age,bool) or not isinstance(age,int):
+                raise ValueError()
+            name=raw_name.strip()
             if not (1 <= len(name) <= 80 and 18 <= age <= 110 and 12 <= len(password) <= 512):
                 raise ValueError()
             user_id=secrets.token_hex(16)
@@ -204,6 +256,7 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify(error="Name 1–80 characters, age 18–110, password 12+ characters required"),400
 
     @app.post("/login")
+    @auth_rate_limit("login")
     def login():
         try:
             values=body()

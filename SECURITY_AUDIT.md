@@ -15,12 +15,12 @@
 
 1. **Unresolved high-severity transitive npm advisories.** The npm audit report traces the Expo/Metro build dependency tree to `braces` versions through 3.0.3 (GHSA-vfj7-8cjw-p6xm) and `node-forge` versions through 1.4.0 (GHSA-86w9-cpqp-85rv). Attempts to pin braces 3.0.4 and node-forge 1.4.1 failed because those versions are not available from the registry at audit time. npm's suggested automatic fix downgrades Expo/React Native across major versions; do **not** apply that breaking downgrade blindly. The production workflow now blocks on high/critical npm audit findings. Reassess when upstream patched releases are available or a reviewed compatible mitigation is approved.
 2. **Stable Android signing secrets** must be created and configured privately by the repository owner. Never commit a keystore or password.
-3. The mobile lockfile is now committed at `mobile/package-lock.json`, and CI/production workflows use `npm ci` for repeatable dependency resolution. The latest runs must still pass after this change.
-2. Real Android and iOS physical-device tests must be recorded using mobile/DEVICE_TEST_CHECKLIST.md. CI emulators/simulators do not satisfy that requirement.
-3. The iOS build needs authorised signing/distribution for physical-device testing.
-4. No suitable approved individual-level Australian longitudinal daily-mood dataset is in the repository. ABS aggregates are contextual only; the visible personal model is not Australian-population-trained.
-5. Independent security/privacy review is required before production, particularly for key management, backup passphrase UX, platform backup behaviour, API bridge TLS/authentication/rate limiting, deletion and retention semantics.
-6. Validate native startup, encrypted save/reopen, backup/restore, migration from previous app versions and in-place signed upgrade on supported OS versions.
+3. The mobile lockfile is committed at mobile/package-lock.json, and CI/production workflows use npm ci for repeatable dependency resolution. Re-run the required checks for every candidate; a committed lockfile is not itself evidence that dependencies are safe.
+4. Real Android and iOS physical-device tests must be recorded using mobile/DEVICE_TEST_CHECKLIST.md. CI emulators/simulators do not satisfy that requirement.
+5. The iOS build needs authorised signing/distribution for physical-device testing.
+6. No suitable approved individual-level Australian longitudinal daily-mood dataset is in the repository. ABS aggregates are contextual only; the visible personal model is not Australian-population-trained.
+7. Independent security/privacy review is required before production, particularly for key management, backup passphrase UX, platform backup behaviour, API bridge TLS/authentication/rate limiting, deletion and retention semantics.
+8. Validate native startup, encrypted save/reopen, backup/restore, migration from previous app versions and in-place signed upgrade on supported OS versions.
 
 ## Performance guardrails
 

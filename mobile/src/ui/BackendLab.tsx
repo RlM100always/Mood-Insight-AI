@@ -17,7 +17,7 @@ export function validateApiAddress(input:string):string{
 }
 type Props={entries:Entry[]};
 type RemoteHistory={entries:{id:string;day:string;mood:number;stress:number}[]};
-async function apiCall(origin:string,path:string,method:'GET'|'POST',
+async function apiCall(origin:string,path:string,method:'GET'|'POST'|'DELETE',
                        auth?:string,payload?:object):Promise<any>{
   const controller=new AbortController();
   const limit=setTimeout(()=>controller.abort(),9000);
@@ -111,6 +111,17 @@ export function ResearchApiBridge({entries}:Props){
       '. No note was sent. Recommendations are rules, not verified AI efficacy.');
     setSharing(false);
   });
+  const deleteAccount=()=>Alert.alert(
+    'Delete optional backend account?',
+    'This permanently deletes the remote account and its associated server records. It does not erase the encrypted journal stored on this phone.',
+    [{text:'Cancel',style:'cancel'},{text:'Delete remote account',style:'destructive',onPress:()=>void action(async()=>{
+      if(!token)throw new Error('Please authenticate first.');
+      await apiCall(withOrigin(),'/user','DELETE',session.current);
+      session.current='';
+      setToken('');setUserId('');setRemote(null);setSharing(false);setPassword('');
+      setStatus('Remote account and associated server records deleted. Your encrypted on-device journal was not changed.');
+    })}]
+  );
 
   return <View style={{gap:11}}>
     <Pressable accessibilityRole="button" onPress={()=>setExpanded(!expanded)} style={st.button}>
@@ -157,6 +168,7 @@ export function ResearchApiBridge({entries}:Props){
         <Action text="Request three Flask recommendations" onPress={recommend}/>
         <Action text="View my backend 14-day history" onPress={history}/>
         {remote? <Text style={st.sub}>Backend history: {remote.entries.length} records. Latest: {remote.entries[0]?.day||'none'}.</Text>:null}
+        {token?<Action text="Delete backend account and server records" onPress={deleteAccount}/>:null}
       </Panel>
     </View>:null}
   </View>;
