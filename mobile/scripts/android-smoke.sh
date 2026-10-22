@@ -65,7 +65,7 @@ wait_for_text_while_scrolling(){
   for attempt in $(seq 1 8); do
     capture || true
     if test -s window.xml && grep -Fq "$target" window.xml; then return 0; fi
-    echo "Scrolling to locate '$target' ($attempt/8)" | tee -a "$DIAG"
+    echo "Scrolling to locate '$target' ($attempt/12)" | tee -a "$DIAG"
     adb shell input swipe 490 1500 490 650 400 || true
     sleep 2
   done
@@ -206,12 +206,12 @@ echo "PASS: activity feedback control accepted a tap"
 
 find_and_tap "Progress tab"
 scroll_to_top
-wait_for_text "Your wellbeing journey"
+wait_for_text_while_scrolling "Your wellbeing journey"
 echo "PASS: Progress screen and activity goals rendered"
 
 find_and_tap "Privacy tab"
 scroll_to_top
-wait_for_text "Your data. Your choice."
+wait_for_text_while_scrolling "Your data. Your choice."
 find_and_tap "Check app features"
 # Health output may appear below the fold after encryption/storage checks.
 for attempt in $(seq 1 8); do
