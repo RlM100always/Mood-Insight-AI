@@ -242,6 +242,8 @@ def main():
     p.add_argument("--licence-confirmed", action="store_true")
     p.add_argument("--australian-sample-confirmed", action="store_true")
     args = p.parse_args()
+    if args.model_out.exists():
+        p.error("Model output path already exists; choose a fresh path so an older artifact cannot be mistaken for this run's result.")
     if not all([args.approved, args.consent_confirmed, args.licence_confirmed, args.australian_sample_confirmed]):
         p.error("Required attestations missing. Verify source, consent, licence, ethics and Australian sample independently.")
     if not args.source_id.strip() or not args.ethics_reference.strip():
