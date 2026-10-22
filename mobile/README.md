@@ -1,4 +1,4 @@
-## User-centred upgrades in 0.4.0
+## User-centred upgrades in 0.5.0
 
 - Select a real-life situation (overthinking, overload, low motivation, loneliness, sleep, stress, conflict or money worries) and get a ranked set of short, guided actions.
 - Browse the full activity library, not only the top three suggestions; ranking considers chosen focus, available time, recent check-ins and personal feedback.
@@ -6,7 +6,7 @@
 - Human support is discoverable through a country-based directory; urgent-risk wording clarifies that the app is not monitored and cannot call for help.
 - Stale check-ins no longer steer current activity recommendations.
 
-## Current user-centred release: 0.4.0
+## Current user-centred release: 0.5.0
 
 - Android emulator E2E explicitly confirms and dismisses the native save dialog before journal navigation, avoiding a false test failure.
 - Encrypted SQLite opening resets the cached DB handle if an initialization/retention step fails.
