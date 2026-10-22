@@ -34,7 +34,7 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 - **Actionable activity studio:** 22 activity blueprints, explainable top-three ranking using selected focus, time available, recent logs and previous feedback; guided steps, pausable on-screen timer, completion log and optional before/after mood feedback.
 - **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
 - **Experimental on-device ML:** local trained Logistic Regression, Decision Tree and Random Forest probability displays on the Patterns screen, clearly labelled as trained on synthetic data, not validated for real health predictions.
-- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Legacy rows are migrated without deleting data; optional measurements are marked not recorded unless entered under the new flow.
+- **Privacy:** no user log uploads, cloud account or analytics; deletion and retention controls. Legacy rows are migrated without deleting data; optional measurements are marked not recorded unless entered under the new flow. The Privacy screen explains why older values may appear as not logged.
 
 ## Android feature E2E test coverage
 

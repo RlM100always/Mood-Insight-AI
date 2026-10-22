@@ -234,9 +234,9 @@ export type NextStep = {title:string;body:string;situation:Situation;buttonLabel
 export function suggestedNextStep(entries:Entry[],sessions:Session[],now=new Date()):NextStep {
   const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
   if(!latest)return {
-    title:'Start with one honest check-in',
-    body:'You do not need to explain everything. Record how you feel, then choose whether you want a small guided action.',
-    situation:'general',buttonLabel:'Start with a small step'
+    title:'Start with one small step',
+    body:'You do not need a check-in to begin. Choose a short guided action now, then record how you feel whenever you are ready.',
+    situation:'general',buttonLabel:'Explore small actions'
   };
   const age=ageInDays(latest.day,now);
   if(age>7||age<0)return {

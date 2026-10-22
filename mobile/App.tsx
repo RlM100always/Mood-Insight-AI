@@ -396,6 +396,7 @@ export default function App() {
           <ResearchApiBridge entries={entries}/>
           <Card><Text style={s.h3}>12-month retention</Text>
             <Text style={s.copy}>Entries older than 365 days are automatically purged whenever the encrypted vault is opened or used. The app does not run a background deletion task while closed.</Text>
+            <Text style={s.copy}>Some older check-ins may show sleep, movement or stress as “not logged”. Those values are preserved, but older app versions could not tell whether a default was deliberately entered, so they are excluded from comparisons until you edit and re-enter them.</Text>
             <Text style={s.h3}>Get human support</Text>
             <Text style={s.copy}>If you need emotional support, use the country-based directory to find a local service. If you are in immediate danger, contact your local emergency service. This app is not monitored.</Text>
             <Primary label="Find local support options" action={()=>void Linking.openURL('https://findahelpline.com/en').catch(()=>Alert.alert('Support page unavailable','Please contact local emergency services or someone you trust if you need urgent help.'))}/>
