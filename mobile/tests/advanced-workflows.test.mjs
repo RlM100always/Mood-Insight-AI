@@ -19,3 +19,33 @@ test('activity minutes and helpfulness reflect actual session records',()=>{
  assert.equal(result.rated,1);
  assert.equal(result.helpful,1);
 });
+
+test('situation-specific plans prioritise relevant short actions and allow browsing the full library',()=>{
+ const logs=[entry('2026-10-21',2)];
+ const prefs={...DEFAULT_PREFERENCES,max_minutes:5};
+ const overthinking=recommendationPlan(logs,[],prefs,'overthinking',false,new Date(2026,9,22,12));
+ assert.equal(overthinking.length,3);
+ assert.ok(overthinking.some(x=>x.id==='thoughtparking'||x.id==='sensoryreset'));
+ const money=recommendationPlan(logs,[],prefs,'money',false,new Date(2026,9,22,12));
+ assert.ok(money.some(x=>x.id==='moneytriage'));
+ const all=recommendationPlan(logs,[],prefs,'general',true,new Date(2026,9,22,12));
+ assert.ok(all.length>=20);
+});
+test('stale check-ins never keep steering current suggestions; missed days do not demand backfilling',()=>{
+ const old=entry('2026-09-01',1);
+ const now=new Date(2026,9,22,12);
+ const plan=recommendationPlan([old],[],DEFAULT_PREFERENCES,'general',true,now);
+ assert.ok(!plan.some(x=>x.reason.includes('latest check-in recorded high stress')));
+ const next=suggestedNextStep([old],[],now);
+ assert.equal(next.title,'Restart without catching up');
+ assert.equal(next.situation,'general');
+});
+test('next-step suggestions respond to recent stress, sleep and personal helpful feedback',()=>{
+ const now=new Date(2026,9,22,12);
+ const highStress={...entry('2026-10-22',3),stress:5,sleep_hours:8};
+ assert.equal(suggestedNextStep([highStress],[],now).situation,'stress');
+ const shortSleep={...entry('2026-10-22',4),stress:2,sleep_hours:5};
+ assert.equal(suggestedNextStep([shortSleep],[],now).situation,'sleep');
+ const helped={id:'s1',activity_id:'moneytriage',day:'2026-10-21',created_at:Date.now(),helpful:1,duration_seconds:180,mood_before:3,mood_after:4};
+ assert.equal(suggestedNextStep([{...entry('2026-10-22',4),stress:2}], [helped], now).situation,'money');
+});

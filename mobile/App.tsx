@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, Pressable,
   SafeAreaView, ScrollView, StatusBar as NativeStatusBar,
   StyleSheet, Text, TextInput, View
 } from 'react-native';
@@ -16,8 +16,8 @@ import {predictNextMood,canPredict} from './src/ml/linear';
 import {predictTreeDemo} from './src/ml/trees';
 import type {TreeArtifact} from './src/ml/trees';
 import treeDemo from './src/ml/trees-demo.json';
-import {DEFAULT_PREFERENCES} from './src/deep';
-import type {Preferences} from './src/deep';
+import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
+import type {Preferences,Situation} from './src/deep';
 import {AdditionalCheckin,JournalSearch} from './src/ui/Tracking';
 import {InsightExplorer,ProgressExplorer} from './src/ui/Explore';
 import {ActivityExplorer} from './src/ui/Activities';
@@ -95,6 +95,7 @@ export default function App() {
   const [sleepQuality,setSleepQuality] = useState<MoodScore>(3);
   const [tags,setTags] = useState<string[]>([]);
   const [preferences,setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
+  const [activitySituation,setActivitySituation] = useState<Situation>('general');
   const [saving,setSaving] = useState(false);
   const [privacyAccepted,setPrivacyAccepted] = useState(false);
 
@@ -182,6 +183,7 @@ export default function App() {
     } finally {setDiagnosing(false);}
   };
   const activities = useMemo(()=>recommend(entries),[entries]);
+  const nextStep = useMemo(()=>suggestedNextStep(entries,sessions),[entries,sessions]);
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
@@ -247,6 +249,13 @@ export default function App() {
               <View><Text style={s.statNum}>{entries.length}</Text><Text style={s.statLabel}>Check-ins</Text></View>
             </View>
           </Card>
+          <Card tint={C.lilac}>
+            <Text style={s.kicker}>YOUR NEXT SMALL STEP</Text>
+            <Text style={s.h3}>{nextStep.title}</Text>
+            <Text style={s.copy}>{nextStep.body}</Text>
+            <Primary label={nextStep.buttonLabel} action={()=>{setActivitySituation(nextStep.situation);setTab('Activities');}}/>
+            <Text style={s.footnote}>Suggestions are optional and based only on your own local check-ins and activity feedback. They are not diagnoses.</Text>
+          </Card>
           <Card>
             <Field label="Date (YYYY-MM-DD)" value={day} onChangeText={setDay}/>
             <Label>YOUR MOOD TODAY</Label>
@@ -269,6 +278,12 @@ export default function App() {
             <Field label="Your thoughts (optional)" value={note} onChangeText={setNote} multiline maxLength={2000}/>
             <Primary label={saving?'Saving…':'Save private check-in'} disabled={saving} action={()=>void save()}/>
             <Text style={s.footnote}>One entry per day. Saving the same date updates it.</Text>
+          </Card>
+          <Card tint={C.peach}>
+            <Text style={s.h3}>When an app isn't enough</Text>
+            <Text style={s.copy}>If you may be in immediate danger or cannot keep yourself safe, contact your local emergency service or go to the nearest emergency department. Mood Insight is not monitored and cannot alert anyone.</Text>
+            <Primary label="Find local emotional support" action={()=>void Linking.openURL('https://findahelpline.com/en').catch(()=>Alert.alert('Support page unavailable','Please contact local emergency services or someone you trust if you need urgent help.'))}/>
+            <Text style={s.footnote}>The directory lets you look for support options by country. Check the service’s own page for its current hours and eligibility.</Text>
           </Card>
         </>:null}
 
@@ -328,7 +343,7 @@ export default function App() {
 
         {tab==='Activities'?<>
           <Heading kicker="Personal activity plans" title="Small actions, real choices" description="A step-by-step plan, tailored reasons and feedback that changes your recommendations."/>
-          <ActivityExplorer entries={entries} sessions={sessions} preferences={preferences} onPreferences={persistPreferences} refresh={refresh}/>
+          <ActivityExplorer entries={entries} sessions={sessions} preferences={preferences} situation={activitySituation} onSituationChange={setActivitySituation} onPreferences={persistPreferences} refresh={refresh}/>
         </>:null}
 
         {tab==='Journal'?<>
@@ -355,8 +370,11 @@ export default function App() {
           <ResearchApiBridge entries={entries}/>
           <Card><Text style={s.h3}>12-month retention</Text>
             <Text style={s.copy}>Entries older than 365 days are automatically purged whenever the encrypted vault is opened or used. The app does not run a background deletion task while closed.</Text>
+            <Text style={s.h3}>Get human support</Text>
+            <Text style={s.copy}>If you need emotional support, use the country-based directory to find a local service. If you are in immediate danger, contact your local emergency service. This app is not monitored.</Text>
+            <Primary label="Find local support options" action={()=>void Linking.openURL('https://findahelpline.com/en').catch(()=>Alert.alert('Support page unavailable','Please contact local emergency services or someone you trust if you need urgent help.'))}/>
             <Text style={s.h3}>No medical claims</Text>
-            <Text style={s.copy}>Personal patterns are descriptive only. This tool does not diagnose, treat, prescribe, or replace qualified care. For emergencies, contact local emergency services.</Text>
+            <Text style={s.copy}>Personal patterns are descriptive only. This tool does not diagnose, treat, prescribe, or replace qualified care.</Text>
             <Text style={s.h3}>Delete your records</Text>
             <Text style={s.copy}>Remove everything including encrypted journal data, activity feedback and the stored encryption key.</Text>
             <Pressable style={s.danger} onPress={confirmErase}><Text style={s.dangerText}>Permanently erase all data</Text></Pressable>

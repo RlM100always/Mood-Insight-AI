@@ -1,14 +1,14 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Alert,Pressable,Text,View} from 'react-native';
 import type {Entry,MoodScore,Session} from '../types';
-import type {Detail,Focus,Preferences} from '../deep';
-import {recommendationPlan} from '../deep';
+import type {Detail,Focus,Preferences,Situation} from '../deep';
+import {recommendationPlan,SITUATIONS} from '../deep';
 import {localDay,readableDay} from '../insights';
 import {logSession,rateSession} from '../data/vault';
 import {Panel,Heading,Choose,Action,colors,st} from './Shared';
 
-export function ActivityExplorer({entries,sessions,preferences,onPreferences,refresh}:{
- entries:Entry[];sessions:Session[];preferences:Preferences;
+export function ActivityExplorer({entries,sessions,preferences,situation,onSituationChange,onPreferences,refresh}:{
+ entries:Entry[];sessions:Session[];preferences:Preferences;situation:Situation;onSituationChange:(x:Situation)=>void;
  onPreferences:(p:Preferences)=>Promise<void>;refresh:()=>Promise<void>
 }){
  const [active,setActive]=useState<Detail|null>(null);
@@ -16,7 +16,8 @@ export function ActivityExplorer({entries,sessions,preferences,onPreferences,ref
  const [running,setRunning]=useState(false);
  const [busy,setBusy]=useState(false);
  const [moodAfter,setMoodAfter]=useState<Record<string,MoodScore>>({});
- const items=useMemo(()=>recommendationPlan(entries,sessions,preferences),[entries,sessions,preferences]);
+ const [showAll,setShowAll]=useState(false);
+ const items=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
  useEffect(()=>{
   if(!running||!active)return;
@@ -80,9 +81,17 @@ export function ActivityExplorer({entries,sessions,preferences,onPreferences,ref
    <View style={st.row}>{[5,10,15,20,30].map(t=>
     <Choose key={t} text={t+' min'} selected={t===preferences.max_minutes}
       onPress={()=>patchPref({...preferences,max_minutes:t})}/>)}</View>
-   <Text style={st.sub}>Your latest logs, focus and previous feedback influence suggestions. Longer activities rank lower when you have less time.</Text>
+   <Text style={st.sub}>Your latest check-in is used only for seven days. Older entries will not keep driving today's suggestions. Your activity feedback also influences ranking.</Text>
   </Panel>
-  <Heading>Your three recommended activities</Heading>
+  <Panel>
+   <Text style={st.title}>What feels hardest right now?</Text>
+   <Text style={st.sub}>Choose a situation if you want more relevant suggestions. This selection stays in the app and is not a diagnosis.</Text>
+   <View style={st.row}>{SITUATIONS.map(option=>
+    <Choose key={option.id} text={option.label} selected={situation===option.id}
+      onPress={()=>onSituationChange(option.id)}/>)}</View>
+   <Text style={st.sub}>{SITUATIONS.find(option=>option.id===situation)?.description}</Text>
+  </Panel>
+  <Heading>{showAll?'Activity library':'Three suggestions for right now'}</Heading>
   {items.map((item,i)=><Panel key={item.id}>
    <View style={{flexDirection:'row',gap:13,alignItems:'flex-start'}}>
     <Text style={{fontWeight:'900',fontSize:27,color:colors.main}}>{String(i+1).padStart(2,'0')}</Text>
@@ -93,6 +102,7 @@ export function ActivityExplorer({entries,sessions,preferences,onPreferences,ref
    <Text style={st.sub}>{item.evidence}</Text>
    <Action text="See guided steps →" onPress={()=>select(item)}/>
   </Panel>)}
+  <Action text={showAll?'Show only my top three':'Browse all activities'} onPress={()=>setShowAll(v=>!v)}/>
   <Heading>Feedback that improves your plan</Heading>
   {sessions.length===0?<Panel><Text style={st.body}>Try an activity and record how helpful it felt. Your responses can change future rankings.</Text></Panel>:
    sessions.slice(0,12).map(item=><Panel key={item.id}>
