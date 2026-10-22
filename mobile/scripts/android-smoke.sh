@@ -159,7 +159,7 @@ echo "PASS: encrypted journal survives a full app process restart"
 
 # Exercise a real guided activity and feedback workflow.
 find_and_tap "Activities tab"
-wait_for_text "Your three recommended activities"
+wait_for_text "Three suggestions for right now"
 find_and_tap "See guided steps"
 wait_for_text "A simple step-by-step guide"
 find_and_tap "I completed or tried this"
