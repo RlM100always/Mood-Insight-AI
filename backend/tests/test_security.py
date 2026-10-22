@@ -60,5 +60,30 @@ class IsolationAndValidationTests(unittest.TestCase):
         self.assertEqual(r.headers.get("Cache-Control"),"no-store")
         self.assertEqual(r.headers.get("X-Content-Type-Options"),"nosniff")
 
+    def test_registration_rejects_fractional_boolean_and_string_ages(self):
+        for age in (25.5, True, "25"):
+            with self.subTest(age=age):
+                result=self.client.post("/user",json={
+                    "name":"Strict age check","age":age,"password":"a-strong-test-password"
+                })
+                self.assertEqual(result.status_code,400,result.json)
+
+    def test_authentication_attempts_are_rate_limited(self):
+        limited_app=create_app({
+            "DB_PATH":str(Path(self.tmp.name)/"limited.sqlite"),
+            "MASTER_KEY":secrets.token_hex(32),
+            "AUTH_SECRET":secrets.token_hex(32),
+            "TESTING":True,
+            "ENFORCE_RATE_LIMITS_IN_TESTS":True,
+            "AUTH_RATE_LIMIT_ATTEMPTS":2,
+            "AUTH_RATE_LIMIT_WINDOW_SECONDS":60,
+        })
+        client=limited_app.test_client()
+        for _ in range(2):
+            self.assertEqual(client.post("/login",json={"user_id":"unknown","password":"wrong"}).status_code,401)
+        limited=client.post("/login",json={"user_id":"unknown","password":"wrong"})
+        self.assertEqual(limited.status_code,429,limited.json)
+        self.assertEqual(limited.headers.get("Retry-After"),"60")
+
 if __name__=="__main__":
     unittest.main()
