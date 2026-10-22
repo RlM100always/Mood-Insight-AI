@@ -66,6 +66,15 @@ jobs:
         with:
           name: mood-insight-android-apk
           path: apk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies for encrypted backup fixture
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: Create synthetic encrypted backup fixtures
+        working-directory: mobile
+        run: node scripts/create-e2e-backup.mjs "$GITHUB_WORKSPACE/mobile/e2e-restore-fixture.mibak"
       - name: Enable KVM for hardware-accelerated Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
