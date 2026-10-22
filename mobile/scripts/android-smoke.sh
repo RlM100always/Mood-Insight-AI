@@ -3,6 +3,8 @@ set -Eeuo pipefail
 # Real smoke checks: keep assertions. Do not label an APK working merely because it installs.
 PACKAGE=app.moodinsight.mobile
 DIAG=android-diagnostics.txt
+# Pin every adb command to the emulator selected by android-emulator-runner.
+export ANDROID_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 : > "$DIAG"
 
 dump_diagnostics() {
@@ -28,9 +30,26 @@ on_exit(){
 }
 trap 'on_exit "$LINENO"' EXIT
 
+wait_for_device_ready(){
+  local state boot
+  for attempt in $(seq 1 45); do
+    adb start-server >/dev/null 2>&1 || true
+    state=$(adb get-state 2>/dev/null || true)
+    if [[ "$state" == "device" ]]; then
+      boot=$(adb shell getprop sys.boot_completed 2>/dev/null || true)
+      if [[ "$boot" == "1" ]]; then return 0; fi
+    fi
+    adb reconnect offline >/dev/null 2>&1 || true
+    echo "Waiting for Android emulator readiness ($attempt/45)" >> "$DIAG"
+    sleep 2
+  done
+  echo "Android emulator did not become ready after 90 seconds" >&2
+  return 1
+}
+
 apk=$(find apk -type f -name '*.apk' | head -n 1)
 if ! test -s "$apk"; then echo "APK artifact not found" >&2; exit 1; fi
-adb wait-for-device
+wait_for_device_ready
 test -s mobile/e2e-restore-fixture.mibak || { echo "Encrypted E2E restore fixture is missing" >&2; exit 1; }
 test -s mobile/e2e-restore-fixture-tampered.mibak || { echo "Encrypted E2E integrity fixture is missing" >&2; exit 1; }
 adb shell mkdir -p /sdcard/Download
@@ -67,7 +86,7 @@ wait_for_text(){
 # failing merely because the heading is off-screen.
 wait_for_text_while_scrolling(){
   target=$1
-  for attempt in $(seq 1 8); do
+  for attempt in $(seq 1 12); do
     capture || true
     if test -s window.xml && grep -Fq "$target" window.xml; then return 0; fi
     echo "Scrolling to locate '$target' ($attempt/12)" | tee -a "$DIAG"
