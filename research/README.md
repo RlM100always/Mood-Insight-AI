@@ -51,3 +51,13 @@ python research/train_daily_model.py --data research/approved-data/daily.csv --r
 ~~~
 
 The flags do not independently verify claims. Keep source data in an approved secure environment, and do not copy the research artifact into the app before independent review and additional temporal/subgroup validation.
+
+
+## Australian longitudinal data leads to investigate
+
+The Research Data Australia catalogue lists two relevant candidate datasets from the Young and Well Towns research program:
+
+- Young and Well Towns Randomised Controlled Trial Data (Flinders University): Australian participants aged 16–25, 2014–2015, with repeated subjective mood, sleep, rest and energy measurements; catalogue licence indicates non-commercial reuse. Record: https://researchdata.edu.au/young-well-towns-trial-data/1793376 ; DOI: https://doi.org/10.4226/86/5927896772837
+- ReachOut Cohort Study Trial data (Flinders University): Australian participants aged 16–25 with repeated self-report mood, sleep, rest and energy measures; catalogue states CC BY-NC. Record: https://researchdata.edu.au/reachout-cohort-study-trial-data/1793346 ; DOI: https://doi.org/10.4226/86/592e34b42cd8a
+
+These are leads, not datasets already downloaded or validated in this repository. Before use, obtain the actual files and codebook, verify the exact variable definitions, data access conditions and non-commercial licence, and confirm that the app's intended distribution is compatible with those terms. Do not force a mapping from rest/energy to exercise/stress if the source did not measure those concepts. If the app is commercial or the licence does not permit model reuse, obtain explicit permission or use another approved source. The raw files must stay outside GitHub.
