@@ -60,9 +60,17 @@ tap_label(){
   python3 - "$needle" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 needle=sys.argv[1].lower()
-for node in ET.parse('window.xml').getroot().iter():
-    text=(node.attrib.get('text','')+' '+node.attrib.get('content-desc','')).lower()
-    if needle in text:
+nodes=list(ET.parse('window.xml').getroot().iter())
+# Prefer the actual clickable Android accessibility node (e.g. Button content-desc="Edit")
+# over its child TextView, which can have a different hit area in React Native.
+for clickable_pass in (True,False):
+    for node in nodes:
+        text=(node.attrib.get('text','')+' '+node.attrib.get('content-desc','')).lower()
+        if needle not in text:
+            continue
+        is_clickable=node.attrib.get('clickable')=='true'
+        if is_clickable != clickable_pass:
+            continue
         bounds=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
         if bounds:
             x1,y1,x2,y2=map(int,bounds.groups())
