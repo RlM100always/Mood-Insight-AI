@@ -31,7 +31,7 @@ test('quick check-in marks skipped measurements as unknown rather than observed 
 test('tab navigation resets the shared content scroll position',()=>{
   const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');
   assert.ok(app.includes('useRef, useState'));
-  assert.ok(app.includes('const scrollRef = useRef<ScrollView|null>(null)'));
+  assert.ok(app.includes('const scrollRef = useRef<any>(null)'));
   assert.ok(app.includes('scrollRef.current?.scrollTo({y:0,animated:false})'));
   assert.ok(app.includes('ref={scrollRef}'));
   assert.ok(app.includes('onPress={()=>navigateTab(n.label)}'));
