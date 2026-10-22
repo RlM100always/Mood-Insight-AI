@@ -276,7 +276,8 @@ export default function App() {
           }}/>
             <Label>YOUR MOOD TODAY</Label>
             <View style={s.moodRow}>{MOODS.map(m=>
-              <Pressable accessibilityRole="button" accessibilityLabel={m.label} key={m.mood}
+              <Pressable accessibilityRole="button" accessibilityLabel={m.label}
+                accessibilityState={{selected:mood===m.mood}} key={m.mood}
                 onPress={()=>setMood(m.mood)} style={[s.mood,mood===m.mood && s.moodSelected]}>
                 <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={s.moodText}>{m.label}</Text>
               </Pressable>)}</View>
