@@ -14,7 +14,7 @@ test('backup encrypts/decrypts records without exposing journal plaintext',async
 test('wrong passphrase and tampered ciphertext are rejected',async()=>{
  const encrypted=await encryptBackup(payload,'correct horse battery staple 2026');
  await assert.rejects(()=>decryptBackup(encrypted,'wrong passphrase is here'),/Could not decrypt/);
- const envelope=JSON.parse(encrypted);envelope.ciphertext=envelope.ciphertext.slice(0,-2)+'00';
+ const envelope=JSON.parse(encrypted);envelope.ciphertext=(envelope.ciphertext.startsWith('00')?'01':'00')+envelope.ciphertext.slice(2);
  await assert.rejects(()=>decryptBackup(JSON.stringify(envelope),'correct horse battery staple 2026'),/Could not decrypt/);
 });
 test('payload validation rejects duplicate days, invalid preferences and future dates',()=>{
