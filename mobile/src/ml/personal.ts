@@ -1,5 +1,5 @@
 import type {Entry, MoodScore} from '../types';
-import {localDay} from '../insights';
+import {localDay} from '../insights.ts';
 type Row={x:number[];y:number;day:string};
 type Status='ready'|'need-history'|'need-variation'|'needs-today-checkin'|'needs-complete-checkin'|'baseline-wins';
 export type PersonalMoodReport={status:Status;message:string;pairs:number;holdout:number;modelAccuracy:number|null;baselineAccuracy:number|null;modelMae:number|null;baselineMae:number|null;predictedMood:MoodScore|null;evidence:'local-real-checkins-only'};
