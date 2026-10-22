@@ -39,6 +39,8 @@ adb shell am start -W -n "$PACKAGE/.MainActivity"
 echo "APK installed and launch requested; waiting for React Native UI to become ready..."
 
 capture(){
+  # Never let a failed hierarchy dump reuse a stale local XML snapshot.
+  rm -f window.xml
   timeout 25s adb shell uiautomator dump /sdcard/window.xml >> "$DIAG" 2>&1 || return 1
   timeout 15s adb exec-out cat /sdcard/window.xml > window.xml 2>> "$DIAG" || return 1
   test -s window.xml
@@ -52,6 +54,22 @@ wait_for_text(){
     sleep 6
   done
   echo "Expected UI not found: $target" >&2
+  return 1
+}
+
+# A React Native ScrollView can contain the correct heading below the visible
+# viewport. Search the real accessibility tree while scrolling instead of
+# failing merely because the heading is off-screen.
+wait_for_text_while_scrolling(){
+  target=$1
+  for attempt in $(seq 1 8); do
+    capture || true
+    if test -s window.xml && grep -Fq "$target" window.xml; then return 0; fi
+    echo "Scrolling to locate '$target' ($attempt/8)" | tee -a "$DIAG"
+    adb shell input swipe 490 1500 490 650 400 || true
+    sleep 2
+  done
+  echo "Expected UI not found after scrolling: $target" >&2
   return 1
 }
 tap_label(){
@@ -166,7 +184,7 @@ for attempt in 1 2 3; do
   sleep 2
 done
 wait_for_text "Small actions, real choices"
-wait_for_text "Three suggestions for right now"
+wait_for_text_while_scrolling "Three suggestions for right now"
 find_and_tap "See guided steps"
 wait_for_text "A simple step-by-step guide"
 find_and_tap "I completed or tried this"
