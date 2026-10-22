@@ -31,6 +31,11 @@ trap 'on_exit "$LINENO"' EXIT
 apk=$(find apk -type f -name '*.apk' | head -n 1)
 if ! test -s "$apk"; then echo "APK artifact not found" >&2; exit 1; fi
 adb wait-for-device
+test -s mobile/e2e-restore-fixture.mibak || { echo "Encrypted E2E restore fixture is missing" >&2; exit 1; }
+test -s mobile/e2e-restore-fixture-tampered.mibak || { echo "Encrypted E2E integrity fixture is missing" >&2; exit 1; }
+adb shell mkdir -p /sdcard/Download
+adb push mobile/e2e-restore-fixture.mibak /sdcard/Download/mood-insight-e2e-backup.mibak >> "$DIAG" 2>&1
+adb push mobile/e2e-restore-fixture-tampered.mibak /sdcard/Download/mood-insight-e2e-backup-tampered.mibak >> "$DIAG" 2>&1
 adb install -r "$apk"
 adb logcat -c || true
 adb shell input keyevent 82 || true
@@ -129,6 +134,34 @@ find_and_tap(){
   echo "Required control not found after scrolling: $label" >&2
   return 1
 }
+
+enter_backup_passphrase(){
+  local value="$1"
+  find_and_tap "Backup passphrase"
+  adb shell input text "$value"
+  adb shell input keyevent 4 || true
+  sleep 1
+}
+
+open_download_fixture(){
+  local filename="$1"
+  find_and_tap "Choose backup file to restore"
+  sleep 2
+  local coords
+  if coords=$(tap_label "Show roots" 2>> "$DIAG"); then
+    local x y
+    read -r x y <<< "$coords"
+    adb shell input tap "$x" "$y"
+  else
+    # Android DocumentsUI normally puts its navigation drawer at this location.
+    adb shell input tap 55 100
+  fi
+  sleep 2
+  find_and_tap "Downloads"
+  sleep 2
+  find_and_tap "$filename"
+  sleep 3
+}
 find_and_tap "I am 18 or older"
 sleep 2
 find_and_tap "Enter my private space"
@@ -226,8 +259,9 @@ echo "PASS: in-app SQLCipher read/write, journal, activity and preferences diagn
 adb exec-out screencap -p > android-smoke.png
 echo "ANDROID FEATURE E2E PASS: save, dialog dismiss, encrypted restart persistence, journal edit, guided activity, feedback, progress and storage diagnostics."
 
-# Verify the encrypted backup/restore controls are present without exporting user data
-# or invoking the system file picker on the CI emulator.
+# Exercise export and restore with synthetic records only on this disposable emulator.
+# The fixture includes one new day and a same-day conflict to verify local data wins.
+BACKUP_PASSPHRASE='MoodInsightE2EBackupPassphrase2026'
 for attempt in $(seq 1 8); do
   capture || true
   if test -s window.xml && grep -Fq 'Export encrypted backup' window.xml; then break; fi
@@ -236,4 +270,56 @@ for attempt in $(seq 1 8); do
 done
 grep -Fq 'Export encrypted backup' window.xml || { echo "FAILED: encrypted backup export control not visible" >&2; exit 1; }
 grep -Fq 'Choose backup file to restore' window.xml || { echo "FAILED: encrypted backup restore control not visible" >&2; exit 1; }
-echo "PASS: encrypted backup and restore controls rendered"
+
+find_and_tap "Backup passphrase"
+adb shell input text "$BACKUP_PASSPHRASE"
+adb shell input keyevent 4 || true
+find_and_tap "Confirm backup passphrase"
+adb shell input text "$BACKUP_PASSPHRASE"
+adb shell input keyevent 4 || true
+find_and_tap "Export encrypted backup"
+sleep 3
+adb shell input keyevent 4 || true
+sleep 3
+wait_for_text_while_scrolling "Encrypted backup prepared"
+echo "PASS: encrypted backup export completed through the native share sheet"
+
+# Wrong passphrase must fail before a restore confirmation or any database change.
+enter_backup_passphrase "WrongPasswordForE2E2026"
+open_download_fixture "mood-insight-e2e-backup.mibak"
+wait_for_text "Backup could not be restored"
+find_and_tap "OK"
+sleep 2
+echo "PASS: wrong backup passphrase was rejected"
+
+# A valid fixture adds yesterday's record but must not overwrite today's existing check-in.
+enter_backup_passphrase "$BACKUP_PASSPHRASE"
+open_download_fixture "mood-insight-e2e-backup.mibak"
+wait_for_text "Restore encrypted backup?"
+find_and_tap "Merge backup"
+wait_for_text_while_scrolling "Restore complete: added 1 check-ins and 1 activity records"
+echo "PASS: encrypted backup restored and same-day local entry preserved"
+
+find_and_tap "Journal tab"
+scroll_to_top
+capture
+if grep -Fq 'E2E_SHOULD_NOT_OVERWRITE_LOCAL_ENTRY' window.xml; then
+  echo "FAILED: restore overwrote the existing same-day local journal entry" >&2
+  exit 1
+fi
+wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
+echo "PASS: restored journal record is readable after decrypting on-device"
+
+# Authenticated ciphertext corruption must be rejected without removing the restored record.
+find_and_tap "Privacy tab"
+scroll_to_top
+wait_for_text_while_scrolling "Your data. Your choice."
+enter_backup_passphrase "$BACKUP_PASSPHRASE"
+open_download_fixture "mood-insight-e2e-backup-tampered.mibak"
+wait_for_text "Backup could not be restored"
+find_and_tap "OK"
+sleep 2
+find_and_tap "Journal tab"
+scroll_to_top
+wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
+echo "PASS: corrupted encrypted backup rejected and existing restored data remained"
