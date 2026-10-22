@@ -120,7 +120,7 @@ export function ResearchApiBridge({entries}:Props){
       session.current='';
       setToken('');setUserId('');setRemote(null);setSharing(false);setPassword('');
       setStatus('Remote account and associated server records deleted. Your encrypted on-device journal was not changed.');
-    })()}]
+    })}]
   );
 
   return <View style={{gap:11}}>
