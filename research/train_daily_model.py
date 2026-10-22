@@ -127,8 +127,10 @@ def main():
     args.report_out.parent.mkdir(parents=True,exist_ok=True)
     args.report_out.write_text(json.dumps(report,indent=2)+"\n",encoding="utf8")
     if artifact is None:
-        args.model_out.unlink(missing_ok=True)
-        print("Research report written; model did not beat the participant-level majority baseline, so no model artifact was emitted.")
+        if args.model_out.exists():
+            print("Research report written; no new model artifact was emitted. Existing output was left unchanged; choose a fresh model-out path to avoid confusing it with this run.")
+        else:
+            print("Research report written; model did not beat the participant-level majority baseline, so no model artifact was emitted.")
         raise SystemExit(2)
     args.model_out.parent.mkdir(parents=True,exist_ok=True)
     args.model_out.write_text(json.dumps(artifact,indent=2)+"\n",encoding="utf8")
