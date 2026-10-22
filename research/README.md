@@ -38,3 +38,16 @@ python research/dataset_preflight.py --data research/approved-data/daily.csv --o
 ~~~
 
 The report contains aggregate counts only, not participant identifiers. The preflight is an eligibility screen, not ethics approval, clinical validation or proof that a source is Australian. No approved individual-level Australian daily-mood dataset is currently present in this repository.
+
+
+## Optional training pipeline for an approved daily longitudinal dataset
+
+The script train_daily_model.py is separate from the app. It requires a suitable approved dataset with daily mood labels and repeated aligned features; it rejects synthetic/mixed provenance, uses a participant-group holdout and writes only aggregate metrics plus model parameters. It emits no model artifact if held-out performance does not beat a simple baseline. It does not use the ABS cross-sectional aggregate file.
+
+The command requires explicit human attestations:
+
+~~~bash
+python research/train_daily_model.py --data research/approved-data/daily.csv --report-out research/output/report.json --model-out research/output/model.json --source-id APPROVED_SOURCE_ID --ethics-reference APPROVED_ETHICS_REFERENCE --approved --consent-confirmed --licence-confirmed --australian-sample-confirmed
+~~~
+
+The flags do not independently verify claims. Keep source data in an approved secure environment, and do not copy the research artifact into the app before independent review and additional temporal/subgroup validation.
