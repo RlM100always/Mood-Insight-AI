@@ -1,5 +1,10 @@
+import base64
+import hashlib
+import hmac
 import secrets
+import struct
 import tempfile
+import time
 from pathlib import Path
 import unittest
 from datetime import date
@@ -121,6 +126,91 @@ class AdminApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/announcements").json["announcements"],[])
 
 
+    def test_admin_assets_use_strict_csp_and_no_inline_script(self):
+        page=self.client.get("/admin")
+        text=page.get_data(as_text=True)
+        self.assertNotIn("<style>",text)
+        self.assertNotIn("<script>",text)
+        self.assertIn("/admin/assets/admin.css",text)
+        self.assertIn("/admin/assets/admin.js",text)
+        self.assertIn("script-src 'self'",page.headers.get("Content-Security-Policy",""))
+        self.assertEqual(page.headers.get("X-Frame-Options"),"DENY")
+        self.assertEqual(self.client.get("/admin/assets/admin.css").status_code,200)
+        self.assertEqual(self.client.get("/admin/assets/admin.js").status_code,200)
+
+    def test_admin_session_can_be_revoked_and_logout_invalidates_token(self):
+        admin=self.admin_headers()
+        current=self.client.get("/admin/api/session",headers=admin)
+        self.assertEqual(current.status_code,200,current.json)
+        sid=current.json["session"]["id"]
+        sessions=self.client.get("/admin/api/sessions",headers=admin)
+        self.assertTrue(any(x["id"]==sid and x["current"] for x in sessions.json["sessions"]))
+        logout=self.client.post("/admin/logout",headers=admin)
+        self.assertEqual(logout.status_code,200,logout.json)
+        self.assertEqual(self.client.get("/admin/api/summary",headers=admin).status_code,401)
+
+    def test_admin_totp_is_required_when_configured(self):
+        raw=bytes.fromhex("3132333435363738393031323334353637383930")
+        secret=base64.b32encode(raw).decode("ascii").rstrip("=")
+        app=create_app({
+            "DB_PATH":str(Path(self.tmp.name)/"mfa.sqlite"),
+            "MASTER_KEY":secrets.token_hex(32),
+            "AUTH_SECRET":secrets.token_hex(32),
+            "ADMIN_PASSWORD":self.admin_password,
+            "ADMIN_TOTP_SECRET":secret,
+            "TESTING":True,
+        })
+        client=app.test_client()
+        missing=client.post("/admin/login",json={"password":self.admin_password})
+        self.assertEqual(missing.status_code,401,missing.json)
+        counter=int(time.time()//30)
+        digest=hmac.new(raw,struct.pack(">Q",counter),hashlib.sha1).digest()
+        offset=digest[-1]&0x0F
+        binary=struct.unpack(">I",digest[offset:offset+4])[0]&0x7FFFFFFF
+        code=str(binary%1000000).zfill(6)
+        ok=client.post("/admin/login",json={"password":self.admin_password,"totp":code})
+        self.assertEqual(ok.status_code,200,ok.json)
+        self.assertTrue(ok.json["mfa_required"])
+
+    def test_funnel_cohorts_and_retention_endpoints_are_operational(self):
+        user=self.register()
+        h={"Authorization":"Bearer "+user["token"]}
+        self.assertEqual(self.client.post("/log_mood",headers=h,json=self.mood()).status_code,200)
+        activity=self.client.post("/activity",headers=h,json={"activity_id":"walk","duration_minutes":5})
+        self.assertEqual(activity.status_code,201,activity.json)
+        self.client.post("/activity/"+activity.json["activity_id"]+"/feedback",headers=h,json={"helpful":True})
+        admin=self.admin_headers()
+        funnel=self.client.get("/admin/api/funnel",headers=admin)
+        self.assertEqual([x["users"] for x in funnel.json["stages"]],[1,1,1,1])
+        cohorts=self.client.get("/admin/api/cohorts?weeks=8",headers=admin)
+        self.assertEqual(cohorts.status_code,200,cohorts.json)
+        self.assertTrue(cohorts.json["cohorts"])
+        retention=self.client.get("/admin/api/retention",headers=admin)
+        self.assertEqual(retention.status_code,200,retention.json)
+        self.assertEqual(retention.json["expired_mood_logs"],0)
+        purged=self.client.post("/admin/api/retention/purge",headers=admin)
+        self.assertEqual(purged.status_code,200,purged.json)
+
+    def test_admin_can_create_safe_rule_activity_and_runtime_uses_it(self):
+        user=self.register()
+        h={"Authorization":"Bearer "+user["token"]}
+        admin=self.admin_headers()
+        payload={
+            "id":"energypause","title":"Energy pause","minutes":6,"difficulty":"Easy",
+            "enabled":True,"priority":10,"category":"energy","rule_type":"energy_lte",
+            "threshold":3,"reason":"Your recorded energy is at or below the configured threshold."
+        }
+        created=self.client.post("/admin/api/activities",headers=admin,json=payload)
+        self.assertEqual(created.status_code,201,created.json)
+        rec=self.client.post("/recommend",headers=h,json={**self.mood(),"energy":2,"sleep_quality":4})
+        self.assertEqual(rec.status_code,200,rec.json)
+        self.assertTrue(any(x["id"]=="energypause" for x in rec.json["activities"]),rec.json)
+        logged=self.client.post("/activity",headers=h,json={"activity_id":"energypause","duration_minutes":6})
+        self.assertEqual(logged.status_code,201,logged.json)
+        delete_used=self.client.delete("/admin/api/activities/energypause",headers=admin)
+        self.assertEqual(delete_used.status_code,409,delete_used.json)
+
+
 if __name__=="__main__":
     unittest.main()
 
@@ -176,7 +266,8 @@ if __name__=="__main__":
         walk=next(x for x in catalog.json["activities"] if x["id"]=="walk")
         changed=self.client.put("/admin/api/activities/walk",headers=admin,json={
             "title":"Admin curated mindful walk","minutes":12,"difficulty":"Moderate",
-            "enabled":True,"priority":10
+            "enabled":True,"priority":10,"category":"energy","rule_type":"movement_lt",
+            "threshold":25,"reason":"Movement is below the configured threshold."
         })
         self.assertEqual(changed.status_code,200,changed.json)
         rec=self.client.post("/recommend",headers=user_headers,json=self.mood())
@@ -188,7 +279,8 @@ if __name__=="__main__":
         self.assertEqual(edited["difficulty"],"Moderate")
         disabled=self.client.put("/admin/api/activities/walk",headers=admin,json={
             "title":"Admin curated mindful walk","minutes":12,"difficulty":"Moderate",
-            "enabled":False,"priority":10
+            "enabled":False,"priority":10,"category":"energy","rule_type":"movement_lt",
+            "threshold":25,"reason":"Movement is below the configured threshold."
         })
         self.assertEqual(disabled.status_code,200)
         rec2=self.client.post("/recommend",headers=user_headers,json=self.mood())
