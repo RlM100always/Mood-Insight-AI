@@ -35,6 +35,8 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 - **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
 - **Personal learning experiment:** an on-device next-day mood model learns from the user's own consecutive recorded check-ins only, and displays an estimate only when chronological holdout results beat a simple baseline. It is not a clinical model. Synthetic Logistic Regression/Decision Tree/Random Forest artifacts remain test fixtures and are not shown to users.
 - **Privacy:** local-first encrypted records, no ad tracking or analytics, and no automatic cloud sync. The optional research bridge sends a single numerical check-in only after explicit user action and consent; journal notes/context tags remain local. Legacy rows are migrated without deleting data; skipped optional measurements are marked not recorded.
+- **Personalisation UX:** users can add validated custom context labels, save favourite activities in encrypted preferences, filter/sort the private journal using both preset and custom contexts, and carry those preferences through validated encrypted backup/restore.
+- **Failure/accessibility baseline:** shared actions use larger touch targets, selection state is visually explicit, and a privacy-safe render error boundary avoids dumping application state into error UI. Full VoiceOver/TalkBack and physical-device accessibility validation remains a release gate.
 
 ## Android feature E2E test coverage
 
