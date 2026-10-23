@@ -23,6 +23,8 @@ from flask import Flask, g, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from backend.admin import DEFAULT_FLAGS, register_admin_routes
+
 DATA_PATH = Path(__file__).resolve().parent.parent / "research" / "data" / "nsmhw_2020_2022.json"
 MODEL_PATH = Path(__file__).resolve().parent.parent / "mobile" / "src" / "ml" / "demo-model.json"
 MAX_BODY = 16 * 1024
@@ -38,6 +40,8 @@ def create_app(config: dict | None = None) -> Flask:
         AUTH_RATE_LIMIT_ENABLED=True,
         AUTH_RATE_LIMIT_ATTEMPTS=8,
         AUTH_RATE_LIMIT_WINDOW_SECONDS=900,
+        ADMIN_PASSWORD=os.environ.get("MOOD_ADMIN_PASSWORD", ""),
+        ADMIN_TOKEN_TTL=1800,
     )
     if config:
         app.config.update(config)
@@ -54,6 +58,7 @@ def create_app(config: dict | None = None) -> Flask:
         raise RuntimeError("Set MOOD_API_SECRET to a random secret at least 32 characters long.")
     aes = AESGCM(key)
     signer = URLSafeTimedSerializer(secret, salt="mood-insight-local-api-v1")
+    admin_signer = URLSafeTimedSerializer(secret, salt="mood-insight-admin-v1")
 
     def connect():
         db_path = str(app.config["DB_PATH"])
@@ -109,7 +114,11 @@ def create_app(config: dict | None = None) -> Flask:
         with connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY, password_hash TEXT NOT NULL,
-                profile_ciphertext TEXT NOT NULL, created_at TEXT NOT NULL)""")
+                profile_ciphertext TEXT NOT NULL, created_at TEXT NOT NULL,
+                disabled INTEGER NOT NULL DEFAULT 0 CHECK(disabled IN (0,1)))""")
+            user_columns={row["name"] for row in db.execute("PRAGMA table_info(users)").fetchall()}
+            if "disabled" not in user_columns:
+                db.execute("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0")
             db.execute("""CREATE TABLE IF NOT EXISTS mood_logs (
                 id TEXT PRIMARY KEY, user_id TEXT NOT NULL, day TEXT NOT NULL,
                 log_ciphertext TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -124,6 +133,19 @@ def create_app(config: dict | None = None) -> Flask:
             db.execute("""CREATE TABLE IF NOT EXISTS auth_rate_limits (
                 ip TEXT NOT NULL, route TEXT NOT NULL, window_start INTEGER NOT NULL,
                 attempts INTEGER NOT NULL, PRIMARY KEY(ip, route))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS admin_audit (
+                id TEXT PRIMARY KEY, action TEXT NOT NULL, target TEXT NOT NULL DEFAULT '',
+                detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS system_flags (
+                key TEXT PRIMARY KEY, value_json TEXT NOT NULL, updated_at TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS announcements (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created_at TEXT NOT NULL)""")
+            for flag_key,flag_value in DEFAULT_FLAGS.items():
+                db.execute(
+                    "INSERT OR IGNORE INTO system_flags(key,value_json,updated_at) VALUES (?,?,datetime('now'))",
+                    (flag_key,json.dumps(flag_value)),
+                )
 
     def encrypt(data: dict) -> str:
         nonce = os.urandom(12)
@@ -149,11 +171,21 @@ def create_app(config: dict | None = None) -> Flask:
             except (BadSignature, SignatureExpired, TypeError, KeyError):
                 return jsonify(error="Invalid or expired token"), 401
             with connect() as db:
-                if db.execute("SELECT id FROM users WHERE id=?", (user_id,)).fetchone() is None:
+                account=db.execute("SELECT id,disabled FROM users WHERE id=?", (user_id,)).fetchone()
+                if account is None:
                     return jsonify(error="User not found"), 401
+                if int(account["disabled"])==1:
+                    return jsonify(error="This backend account is disabled"), 403
             g.user_id = user_id
             return func(*args, **kwargs)
         return wrapped
+
+    def flag_enabled(key:str,default:bool=True)->bool:
+        with connect() as db:
+            row=db.execute("SELECT value_json FROM system_flags WHERE key=?",(key,)).fetchone()
+        if row is None:return default
+        try:return json.loads(row["value_json"]) is True
+        except (TypeError,ValueError,json.JSONDecodeError):return default
 
     def body():
         value = request.get_json(silent=True)
@@ -231,11 +263,15 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/research/australia")
     def australian_data():
+        if not flag_enabled("research_data_endpoint_enabled",True):
+            return jsonify(error="Research data endpoint is temporarily disabled"),503
         return jsonify(json.loads(DATA_PATH.read_text(encoding="utf8")))
 
     @app.post("/user")
     @auth_rate_limit("register")
     def register():
+        if not flag_enabled("registration_enabled",True):
+            return jsonify(error="New backend registrations are temporarily disabled"),503
         try:
             values=body()
             raw_name=values.get("name")
@@ -248,7 +284,7 @@ def create_app(config: dict | None = None) -> Flask:
                 raise ValueError()
             user_id=secrets.token_hex(16)
             with connect() as db:
-                db.execute("INSERT INTO users VALUES (?,?,?,?)",
+                db.execute("INSERT INTO users (id,password_hash,profile_ciphertext,created_at,disabled) VALUES (?,?,?,?,0)",
                            (user_id,generate_password_hash(password),
                             encrypt({"name":name,"age":age}),datetime.now(timezone.utc).isoformat()))
             return jsonify(user_id=user_id, token=issue(user_id), storage="local encrypted backend"),201
@@ -317,6 +353,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/recommend")
     @bearer
     def recommendations():
+        if not flag_enabled("recommendations_enabled",True):
+            return jsonify(error="Backend recommendations are temporarily disabled"),503
         try:
             payload=body()
             payload["day"]=date.today().isoformat()
@@ -396,6 +434,13 @@ def create_app(config: dict | None = None) -> Flask:
         return jsonify(status="deleted",scope="backend account and associated records only")
 
     init()
+    register_admin_routes(
+        app=app,
+        connect=connect,
+        admin_signer=admin_signer,
+        admin_password=str(app.config.get("ADMIN_PASSWORD","")),
+        auth_rate_limit=auth_rate_limit,
+    )
     return app
 
 if __name__=="__main__":
