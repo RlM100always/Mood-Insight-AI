@@ -33,6 +33,18 @@ export type MoodCalendarDay = {
 export type DataQualityCoach = {
   label:string;coverage:number|null;message:string;
 };
+export type MoodDistributionItem = {
+  mood:1|2|3|4|5;count:number;share:number;
+};
+export type WeeklySnapshot = {
+  start:string;end:string;logged:number;coverage:number;averageMood:number|null;
+};
+export type WeekdayMood = {
+  weekday:string;samples:number;averageMood:number;
+};
+export type InsightReadiness = {
+  score:number;level:'early'|'building'|'strong';recordedDays:number;signalPairs:number;contextDays:number;message:string;
+};
 
 const DAY=86_400_000;
 const mean=(xs:number[])=>xs.reduce((s,x)=>s+x,0)/Math.max(1,xs.length);
@@ -214,4 +226,51 @@ export function dataQualityCoach(entries:Entry[],now=new Date()):DataQualityCoac
   const [label,value]=fields[0];
   if(value>=.8)return {label:'Strong measurement coverage',coverage:value,message:'Your recent optional measurements are well covered. Keep answering naturally rather than trying to make the data look complete.'};
   return {label:'Lowest recent coverage: '+label,coverage:value,message:'If it feels easy, recording '+label+' a little more often may strengthen descriptive patterns. Skipping is always allowed and values are never guessed.'};
+}
+
+
+export function moodDistribution(entries:Entry[],days=30,now=new Date()):MoodDistributionItem[]{
+  const rows=inWindow(entries,days,now),n=Math.max(1,rows.length);
+  return ([1,2,3,4,5] as const).map(mood=>{
+    const count=rows.filter(e=>e.mood===mood).length;
+    return {mood,count,share:rows.length?count/n:0};
+  });
+}
+export function weeklySnapshots(entries:Entry[],weeks=4,now=new Date()):WeeklySnapshot[]{
+  const today=ordinal(isoDay(now))!,out:WeeklySnapshot[]=[];
+  for(let block=weeks-1;block>=0;block--){
+    const end=today-block*7,start=end-6,startDay=dayFromOrdinal(start),endDay=dayFromOrdinal(end);
+    const rows=entries.filter(e=>e.day>=startDay&&e.day<=endDay);
+    out.push({start:startDay,end:endDay,logged:rows.length,coverage:rows.length/7,
+      averageMood:rows.length?mean(rows.map(e=>e.mood)):null});
+  }
+  return out;
+}
+export function weekdayMoodProfile(entries:Entry[],days=90,now=new Date()):WeekdayMood[]{
+  const rows=inWindow(entries,days,now),groups=new Map<number,Entry[]>();
+  for(const e of rows){
+    const d=ordinal(e.day);if(d===null)continue;
+    const weekday=new Date(d*DAY).getUTCDay(),old=groups.get(weekday)||[];old.push(e);groups.set(weekday,old);
+  }
+  const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return names.map((weekday,index)=>{
+    const items=groups.get(index)||[];
+    return items.length>=2?{weekday,samples:items.length,averageMood:mean(items.map(e=>e.mood))}:null;
+  }).filter((x):x is WeekdayMood=>x!==null);
+}
+export function insightReadiness(entries:Entry[],now=new Date()):InsightReadiness{
+  const rows=inWindow(entries,90,now),coverage=dataCoverage(entries,30,now);
+  const signalFields=['sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded'] as const;
+  const signalPairs=rows.filter(e=>signalFields.some(key=>e[key]===1)).length;
+  const contextDays=rows.filter(e=>e.context_tags.trim().length>0).length;
+  const recorded=Math.min(1,rows.length/30),signals=Math.min(1,signalPairs/21),contexts=Math.min(1,contextDays/12);
+  const optional=(coverage.sleep+coverage.movement+coverage.stress+coverage.energy+coverage.sleepQuality)/5;
+  const score=Math.round(100*(recorded*.45+signals*.25+contexts*.15+optional*.15));
+  const level:InsightReadiness['level']=score>=75?'strong':score>=40?'building':'early';
+  const message=level==='strong'
+    ?'You have enough recent coverage for several descriptive personal views. New data can still change them.'
+    :level==='building'
+      ?'Your personal picture is taking shape. Repeated contexts and optional measurements can make comparisons more stable.'
+      :'The app is still learning the shape of your own records. A few more naturally logged days will unlock richer comparisons.';
+  return {score,level,recordedDays:rows.length,signalPairs,contextDays,message};
 }
