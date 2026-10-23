@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import type {Entry, EntryInput, Session} from '../types';
 import {localDay} from '../insights';
-import {DEFAULT_PREFERENCES, CONTEXT_TAGS} from '../deep';
+import {DEFAULT_PREFERENCES} from '../deep';
+import {isValidContextCsv} from '../context';
 import type {Preferences} from '../deep';
 import {validateBackupPayload} from '../backup';
 import type {BackupPayload} from '../backup';
@@ -71,7 +72,9 @@ export async function openVault(): Promise<void> {
     if(!activityExisting.has('duration_seconds')) await candidate.execAsync('ALTER TABLE activity_sessions ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0');
     if(!activityExisting.has('mood_before')) await candidate.execAsync('ALTER TABLE activity_sessions ADD COLUMN mood_before INTEGER');
     if(!activityExisting.has('mood_after')) await candidate.execAsync('ALTER TABLE activity_sessions ADD COLUMN mood_after INTEGER');
-    await candidate.execAsync("CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY CHECK(id=1), focus TEXT NOT NULL, max_minutes INTEGER NOT NULL, weekly_checkins INTEGER NOT NULL, weekly_activities INTEGER NOT NULL)");
+    await candidate.execAsync("CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY CHECK(id=1), focus TEXT NOT NULL, max_minutes INTEGER NOT NULL, weekly_checkins INTEGER NOT NULL, weekly_activities INTEGER NOT NULL, favorite_activity_ids TEXT NOT NULL DEFAULT '')");
+    const prefColumns=await candidate.getAllAsync<{name:string}>('PRAGMA table_info(user_preferences)');
+    if(!new Set(prefColumns.map(c=>c.name)).has('favorite_activity_ids')) await candidate.execAsync("ALTER TABLE user_preferences ADD COLUMN favorite_activity_ids TEXT NOT NULL DEFAULT ''");
     database = candidate;
     await purgeExpired();
   } catch (e) {
@@ -112,7 +115,7 @@ export async function saveEntry(input: EntryInput): Promise<void> {
     !Number.isInteger(input.stress) || input.stress < 1 || input.stress > 5 ||
     !Number.isInteger(input.energy) || input.energy < 1 || input.energy > 5 ||
     !Number.isInteger(input.sleep_quality) || input.sleep_quality < 1 || input.sleep_quality > 5 ||
-    input.context_tags.length > 250 || input.context_tags.split(',').some(t=>t.length>0&&!CONTEXT_TAGS.some(c=>c===t)) ||
+    !isValidContextCsv(input.context_tags) ||
     input.note.length > 2000 ||
     [input.sleep_recorded,input.exercise_recorded,input.stress_recorded,input.energy_recorded,input.sleep_quality_recorded].some(v=>v!==0&&v!==1))
     throw new Error('Check date, mood, optional measurements, provenance flags, notes and contexts.');
@@ -152,16 +155,18 @@ export async function rateSession(id: string, helpful: boolean, moodAfter: numbe
   await db().runAsync('UPDATE activity_sessions SET helpful=?,mood_after=? WHERE id=?', helpful ? 1 : 0,moodAfter,id);
 }
 export async function loadPreferences():Promise<Preferences>{
-  const row=await db().getFirstAsync<Preferences>('SELECT focus,max_minutes,weekly_checkins,weekly_activities FROM user_preferences WHERE id=1');
-  return row||DEFAULT_PREFERENCES;
+  const row=await db().getFirstAsync<Preferences>('SELECT focus,max_minutes,weekly_checkins,weekly_activities,favorite_activity_ids FROM user_preferences WHERE id=1');
+  return row?{...DEFAULT_PREFERENCES,...row}:DEFAULT_PREFERENCES;
 }
 export async function savePreferences(value:Preferences):Promise<void>{
   if(!['balance','calm','sleep','energy','connection'].includes(value.focus) ||
     ![5,10,15,20,30].includes(value.max_minutes) ||
     !Number.isInteger(value.weekly_checkins)||value.weekly_checkins<1||value.weekly_checkins>7 ||
-    !Number.isInteger(value.weekly_activities)||value.weekly_activities<1||value.weekly_activities>14)
+    !Number.isInteger(value.weekly_activities)||value.weekly_activities<1||value.weekly_activities>14||
+    typeof value.favorite_activity_ids!=='string'||value.favorite_activity_ids.length>1000||
+    value.favorite_activity_ids.split(',').filter(Boolean).some(id=>!/^[a-z][a-z0-9_]{1,29}$/.test(id)))
     throw new Error('Invalid wellbeing preferences.');
-  await db().runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities) VALUES (1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities',value.focus,value.max_minutes,value.weekly_checkins,value.weekly_activities);
+  await db().runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities,favorite_activity_ids) VALUES (1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities,favorite_activity_ids=excluded.favorite_activity_ids',value.focus,value.max_minutes,value.weekly_checkins,value.weekly_activities,value.favorite_activity_ids);
 }
 
 export async function createBackupSnapshot():Promise<BackupPayload>{
@@ -180,7 +185,7 @@ export async function mergeBackupSnapshot(input:unknown):Promise<{entriesAdded:n
    'INSERT OR IGNORE INTO activity_sessions (id,activity_id,day,created_at,helpful,duration_seconds,mood_before,mood_after) VALUES (?,?,?,?,?,?,?,?)',
    s.id,s.activity_id,s.day,s.created_at,s.helpful,s.duration_seconds,s.mood_before,s.mood_after);
   const p=payload.preferences;
-  await connection.runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities) VALUES (1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities',p.focus,p.max_minutes,p.weekly_checkins,p.weekly_activities);
+  await connection.runAsync('INSERT INTO user_preferences (id,focus,max_minutes,weekly_checkins,weekly_activities,favorite_activity_ids) VALUES (1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET focus=excluded.focus,max_minutes=excluded.max_minutes,weekly_checkins=excluded.weekly_checkins,weekly_activities=excluded.weekly_activities,favorite_activity_ids=excluded.favorite_activity_ids',p.focus,p.max_minutes,p.weekly_checkins,p.weekly_activities,p.favorite_activity_ids);
  });
  const afterEntries=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM mood_entries');
  const afterSessions=await connection.getFirstAsync<{count:number}>('SELECT COUNT(*) AS count FROM activity_sessions');
