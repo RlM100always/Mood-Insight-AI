@@ -25,3 +25,10 @@ test('provided measurements are recorded and validated',()=>{
  assert.throws(()=>buildEntryInput({...base,exercise:'3.5'}),/whole number/);
  assert.throws(()=>buildEntryInput({...base,mood:null}),/Choose your mood/);
 });
+
+test('custom context labels are normalized, deduplicated and comma-safe',()=>{
+ const value=buildEntryInput({...base,tags:['  Remote   work  ','remote work','Deadline']});
+ assert.equal(value.context_tags,'Remote work,Deadline');
+ assert.throws(()=>buildEntryInput({...base,tags:['bad,label']}),/Context labels/);
+ assert.throws(()=>buildEntryInput({...base,tags:Array.from({length:9},(_,i)=>'Tag '+i)}),/up to 8/);
+});
