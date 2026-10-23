@@ -192,24 +192,29 @@ enter_backup_passphrase(){
   sleep 1
 }
 
+foreground_activity(){
+  local focus
+  focus=$(adb shell dumpsys activity activities 2>/dev/null | grep -m1 'mResumedActivity' || true)
+  if test -z "$focus"; then
+    focus=$(adb shell dumpsys window 2>/dev/null | grep -m1 -E 'mCurrentFocus|mFocusedApp' || true)
+  fi
+  printf '%s' "$focus"
+}
+
 return_from_share_sheet(){
   local focus
   for attempt in $(seq 1 8); do
-    focus=$(adb shell dumpsys window windows 2>/dev/null | grep -m1 'mCurrentFocus' || true)
+    focus=$(foreground_activity)
     echo "Share-sheet foreground check $attempt: $focus" >> "$DIAG"
     if echo "$focus" | grep -Fq "$PACKAGE"; then
       return 0
     fi
-    # AOSP ChooserActivity can behave as a bottom sheet: the first back press may
-    # collapse it rather than finish it, so keep backing out until our task owns focus.
     adb shell input keyevent 4 || true
     sleep 1
   done
-  # If the system chooser is still in front, CLEAR_TOP the existing singleTask
-  # MainActivity so chooser activities above it are removed without wiping app data.
-  adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER     -f 0x14000000 -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1 || true
+  adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x14000000 -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1 || true
   for attempt in $(seq 1 10); do
-    focus=$(adb shell dumpsys window windows 2>/dev/null | grep -m1 'mCurrentFocus' || true)
+    focus=$(foreground_activity)
     echo "App foreground recovery $attempt: $focus" >> "$DIAG"
     if echo "$focus" | grep -Fq "$PACKAGE"; then
       return 0
