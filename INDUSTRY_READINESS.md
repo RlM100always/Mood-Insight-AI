@@ -19,7 +19,7 @@ Reference baselines:
 | Network security | No automatic sync; physical-device backend URL requires HTTPS in the app bridge | URL validation tests | TLS configuration/certificate review for any real deployment |
 | Personalisation | Custom context labels, encrypted preferences, favourite activities, feedback-aware ranking | Unit tests for validation/ranking/backup | Usability evaluation with representative users |
 | Failure handling | Global render error boundary avoids dumping error objects/private state; feature-level errors are surfaced to the user | Source/type checks | Crash/low-memory/interruption testing on real devices |
-| Accessibility | 44–50px+ shared action targets, labelled controls, selected states, simplified insight hierarchy | Source/type checks | VoiceOver/TalkBack, Dynamic Type/font scaling, contrast and keyboard testing on physical devices |
+| Accessibility | Five-destination primary bottom navigation, 44–50px+ shared action targets, labelled controls, selected states, simplified insight hierarchy | Source/type checks | VoiceOver/TalkBack, Dynamic Type/font scaling, contrast and keyboard testing on physical devices |
 | Model safety | Personal experiment uses only the user's own consecutive records, chronological holdout and baseline gate; synthetic fixtures are not shown as real predictions | Model eligibility/baseline regression tests | Clinical validation is intentionally not claimed; any future population model requires approved data and independent validation |
 
 ## Optional backend and admin console
