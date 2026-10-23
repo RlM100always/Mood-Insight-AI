@@ -52,6 +52,7 @@ def register_admin_routes(
     admin_password: str,
     admin_totp_secret: str,
     auth_rate_limit: Callable,
+    clear_auth_rate_limit: Callable,
 ) -> None:
     def audit(action: str, target: str = "", detail: str = "") -> None:
         with connect() as db:
@@ -202,6 +203,7 @@ def register_admin_routes(
             audit("admin_login_failed", "", "totp")
             return jsonify(error="Invalid administrator verification code"), 401
         sid, ttl = create_admin_session()
+        clear_auth_rate_limit("admin-login")
         audit("admin_login", sid[:12], "mfa" if admin_totp_secret else "password-only")
         return jsonify(
             token=admin_signer.dumps({"role": "admin", "sid": sid}),
