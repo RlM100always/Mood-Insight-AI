@@ -219,7 +219,7 @@ if grep -Fq 'No entries match' window.xml; then
 fi
 echo "PASS: journal navigation and saved entry rendered"
 
-find_and_tap "Edit"
+find_and_tap "Edit journal entry"
 wait_for_text "How are you feeling?"
 echo "PASS: previously saved check-in is editable"
 
