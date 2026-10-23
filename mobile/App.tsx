@@ -329,6 +329,9 @@ export default function App() {
             {personalModel.status==='ready'?<>
               <Text style={s.heroSmall}>Exploratory next-day mood class: {personalModel.predictedMood}/5</Text>
               <Text style={s.copy}>Chronological holdout: {Math.round((personalModel.modelAccuracy||0)*100)}% correct versus {Math.round((personalModel.baselineAccuracy||0)*100)}% for a simple baseline across {personalModel.holdout} held-out day pairs.</Text>
+              <Text style={s.copy}>Mean absolute error: {(personalModel.modelMae||0).toFixed(2)} versus {(personalModel.baselineMae||0).toFixed(2)} baseline. Model certainty for the displayed class: {Math.round((personalModel.modelConfidence||0)*100)}%.</Text>
+              <Text style={s.small}>Probability by mood: {personalModel.probabilityByMood?.map((p,i)=>(i+1)+'/5 '+Math.round(p*100)+'%').join(' · ')}</Text>
+              <Text style={s.small}>Largest inputs for this estimate: {personalModel.topInputs.join(' · ')}. These describe model influence, not causes of your mood.</Text>
               <Text style={s.copy}>This is a small personal experiment, not a clinical prediction. It appears only after its held-out results beat the baseline; never use it for health decisions.</Text>
             </>:<>
               <Text style={s.copy}>{personalModel.message}</Text>
