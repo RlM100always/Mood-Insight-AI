@@ -1,7 +1,7 @@
 import React,{useMemo} from 'react';
 import {Text,View} from 'react-native';
 import type {Entry,Session} from '../types';
-import {activityOutcomeInsights,consistencyInsights,dataCoverage,signalAssociations,windowSummary} from '../advanced';
+import {activityOutcomeInsights,consistencyInsights,contextMoodRanking,dataCoverage,dataQualityCoach,moodCalendar,recoveryProfile,signalAssociations,weekComparison,windowSummary} from '../advanced';
 import {Heading,Meter,Panel,colors,st} from './Shared';
 
 function pct(n:number){return Math.round(n*100)+'%';}
@@ -13,6 +13,11 @@ export function PatternDepth({entries}:{entries:Entry[]}){
  const month=useMemo(()=>windowSummary(entries,30),[entries]);
  const coverage=useMemo(()=>dataCoverage(entries,30),[entries]);
  const signals=useMemo(()=>signalAssociations(entries,90),[entries]);
+ const comparison=useMemo(()=>weekComparison(entries),[entries]);
+ const contexts=useMemo(()=>contextMoodRanking(entries,90),[entries]);
+ const recovery=useMemo(()=>recoveryProfile(entries,90),[entries]);
+ const calendar=useMemo(()=>moodCalendar(entries,28),[entries]);
+ const coach=useMemo(()=>dataQualityCoach(entries),[entries]);
  const stability=month.volatility===null?'Not enough data':month.volatility<.65?'fairly steady':month.volatility<1.05?'variable':'highly variable';
  return <View style={{gap:13}}>
   <Heading>Deeper 30-day picture</Heading>
@@ -30,6 +35,25 @@ export function PatternDepth({entries}:{entries:Entry[]}){
    <Text style={st.sub}>Trend is a simple line through your recorded days. It describes direction; it does not predict what happens next.</Text>
   </Panel>
   <Panel>
+   <Text style={st.title}>Week vs previous week</Text>
+   <Text style={st.body}>This week: {comparison.currentAverage===null?'—':comparison.currentAverage.toFixed(1)+'/5'} across {comparison.currentLogged} days · previous week: {comparison.previousAverage===null?'—':comparison.previousAverage.toFixed(1)+'/5'} across {comparison.previousLogged} days.</Text>
+   <Text style={st.sub}>{comparison.delta===null?'Log in both seven-day windows to compare them.':'Difference '+signed(comparison.delta)+' points. This is descriptive only and missing days are not filled.'}</Text>
+  </Panel>
+  <Panel>
+   <Text style={st.title}>28-day mood calendar</Text>
+   <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
+    {calendar.map(x=><View key={x.day} accessibilityLabel={x.day+(x.mood?' mood '+x.mood:' no check-in')} style={{width:'12%',minWidth:36,paddingVertical:8,borderRadius:9,alignItems:'center',backgroundColor:x.mood?colors.soft:colors.bg,borderWidth:1,borderColor:colors.line}}>
+      <Text style={{fontSize:10,color:colors.sub}}>{x.day.slice(8)}</Text><Text style={{fontWeight:'900',color:colors.ink}}>{x.mood??'·'}</Text>
+    </View>)}
+   </View>
+   <Text style={st.sub}>Each cell is a calendar day; a dot means no check-in. No interpolation.</Text>
+  </Panel>
+  <Panel tint={colors.warm}>
+   <Text style={st.title}>{coach.label}</Text>
+   {coach.coverage!==null?<Meter value={coach.coverage}/>:null}
+   <Text style={st.sub}>{coach.message}</Text>
+  </Panel>
+  <Panel>
    <Text style={st.title}>Measurement coverage</Text>
    {[['Sleep',coverage.sleep],['Movement',coverage.movement],['Stress',coverage.stress],['Energy',coverage.energy],['Sleep quality',coverage.sleepQuality],['Journal note',coverage.journal],['Context tag',coverage.contexts]].map(([label,value])=>
     <View key={String(label)} style={{gap:5}}>
@@ -37,6 +61,18 @@ export function PatternDepth({entries}:{entries:Entry[]}){
      <Meter value={Number(value)}/>
     </View>)}
    <Text style={st.sub}>Coverage is calculated only across days you logged. Skipped optional fields remain missing, never guessed.</Text>
+  </Panel>
+  <Heading>Context snapshots</Heading>
+  {contexts.length?contexts.slice(0,5).map(x=><Panel key={x.label}>
+   <Text style={st.title}>{x.label}</Text>
+   <Text style={st.body}>Average mood {x.averageMood.toFixed(1)}/5 across {x.samples} tagged days · {Math.round(x.highShare*100)}% higher-mood days · {Math.round(x.lowShare*100)}% low-mood days.</Text>
+   <Text style={st.sub}>Difference from your overall 90-day logged average: {signed(x.differenceFromOverall)}. Tags can overlap, so this is not a causal comparison.</Text>
+  </Panel>):<Panel><Text style={st.body}>Add the same context tag on at least three logged days to build a context snapshot.</Text></Panel>}
+  <Heading>Low-mood recovery pattern</Heading>
+  <Panel>
+   <Text style={st.body}>{recovery.lowDays} low-mood days in the recent window · {recovery.nextDayPairs} had a check-in on the very next calendar day.</Text>
+   <Text style={st.body}>{recovery.nextDayPairs?('Average next-day change '+signed(recovery.averageNextDayChange||0)+' · '+Math.round((recovery.recoveryRate||0)*100)+'% reached mood 3 or above.'):'More consecutive-day data is needed before a recovery pattern can be described.'}</Text>
+   <Text style={st.sub}>This describes recorded day-to-day changes only. It is not a prediction of recovery or a clinical measure.</Text>
   </Panel>
   <Heading>Signals worth noticing</Heading>
   {signals.length?signals.slice(0,5).map(x=><Panel key={x.id} tint={Math.abs(x.correlation)>=.5?colors.warm:undefined}>
