@@ -201,8 +201,14 @@ export async function checkVaultHealth(): Promise<{cipher: string; database: str
   const tables = await connection.getAllAsync<{name: string}>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('mood_entries','activity_sessions','user_preferences')");
   const measurementColumns=await connection.getAllAsync<{name:string}>('PRAGMA table_info(mood_entries)');
   const columnNames=new Set(measurementColumns.map(c=>c.name));
-  const provenance=['sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded'];
-  for(const name of provenance)if(!columnNames.has(name))throw new Error('Missing optional-measurement provenance column: '+name);
+  const requiredMoodColumns=['energy','sleep_quality','context_tags','sleep_recorded','exercise_recorded','stress_recorded','energy_recorded','sleep_quality_recorded'];
+  for(const name of requiredMoodColumns)if(!columnNames.has(name))throw new Error('Missing encrypted journal schema column: '+name);
+  const sessionSchema=await connection.getAllAsync<{name:string}>('PRAGMA table_info(activity_sessions)');
+  const sessionNames=new Set(sessionSchema.map(c=>c.name));
+  for(const name of ['duration_seconds','mood_before','mood_after'])if(!sessionNames.has(name))throw new Error('Missing encrypted activity schema column: '+name);
+  const preferenceSchema=await connection.getAllAsync<{name:string}>('PRAGMA table_info(user_preferences)');
+  const preferenceNames=new Set(preferenceSchema.map(c=>c.name));
+  if(!preferenceNames.has('favorite_activity_ids'))throw new Error('Missing encrypted favourites preference column.');
   const names = new Set(tables.map(t => t.name));
   for (const name of ['mood_entries', 'activity_sessions', 'user_preferences']) {
     if (!names.has(name)) throw new Error('Missing encrypted database table: ' + name);
@@ -219,7 +225,7 @@ export async function checkVaultHealth(): Promise<{cipher: string; database: str
   // Read each feature's data path without mutating private records.
   await Promise.all([listEntries(), listSessions(),loadPreferences()]);
   return {cipher:version.cipher_version,database:'Encrypted read/write passed',
-    journal:'Read passed',activities:'Read passed',preferences:'Read passed',
+    journal:'Read/schema passed',activities:'Read/schema passed',preferences:'Read/schema passed',
     optionalMeasurements:'Unknown/skipped fields are tracked separately'};
 }
 
