@@ -1,5 +1,5 @@
 import type {EntryInput, MoodScore} from './types';
-import {normalizeContextTags} from './context';
+import {normalizeContextTags} from './context.ts';
 
 export type CheckinDraft = {
   day:string;
