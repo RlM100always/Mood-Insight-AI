@@ -779,6 +779,68 @@ def register_admin_routes(
         audit("announcement_deleted", item_id)
         return jsonify(status="deleted", id=item_id)
 
+    @app.get("/admin/api/funnel")
+    @admin_bearer
+    def admin_funnel():
+        with connect() as db:
+            total=int(db.execute("SELECT COUNT(*) FROM users").fetchone()[0] or 0)
+            checkin=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM mood_logs").fetchone()[0] or 0)
+            activity=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM activity_logs").fetchone()[0] or 0)
+            rated=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM activity_logs WHERE helpful IS NOT NULL").fetchone()[0] or 0)
+        def rate(value): return value/total if total else None
+        return jsonify(stages=[
+            {"id":"registered","label":"Registered","users":total,"rate":1.0 if total else None},
+            {"id":"checkin","label":"Saved a mood log","users":checkin,"rate":rate(checkin)},
+            {"id":"activity","label":"Logged an activity","users":activity,"rate":rate(activity)},
+            {"id":"rated","label":"Rated an activity","users":rated,"rate":rate(rated)},
+        ])
+
+    @app.get("/admin/api/cohorts")
+    @admin_bearer
+    def admin_cohorts():
+        try:
+            weeks=min(16,max(4,int(request.args.get("weeks","8"))))
+        except ValueError:
+            return jsonify(error="weeks must be an integer"),400
+        cutoff=(date.today()-timedelta(days=weeks*7-1)).isoformat()
+        with connect() as db:
+            rows=db.execute("""WITH first_event AS (
+                    SELECT user_id,MIN(day) first_day FROM (
+                      SELECT user_id,day FROM mood_logs
+                      UNION ALL SELECT user_id,day FROM activity_logs
+                    ) GROUP BY user_id
+                )
+                SELECT strftime('%Y-%W',u.created_at) cohort,
+                       MIN(substr(u.created_at,1,10)) cohort_start,
+                       COUNT(*) users,
+                       SUM(CASE WHEN f.first_day IS NOT NULL
+                            AND julianday(f.first_day)-julianday(substr(u.created_at,1,10)) BETWEEN 0 AND 7
+                           THEN 1 ELSE 0 END) activated_7d
+                FROM users u LEFT JOIN first_event f ON f.user_id=u.id
+                WHERE substr(u.created_at,1,10)>=?
+                GROUP BY strftime('%Y-%W',u.created_at)
+                ORDER BY cohort_start""",(cutoff,)).fetchall()
+        return jsonify(cohorts=[{**dict(row),"activation_rate":(row["activated_7d"]/row["users"] if row["users"] else None)} for row in rows])
+
+    @app.get("/admin/api/retention")
+    @admin_bearer
+    def admin_retention():
+        cutoff=(date.today()-timedelta(days=365)).isoformat()
+        with connect() as db:
+            mood=int(db.execute("SELECT COUNT(*) FROM mood_logs WHERE day<?",(cutoff,)).fetchone()[0] or 0)
+            activity=int(db.execute("SELECT COUNT(*) FROM activity_logs WHERE day<?",(cutoff,)).fetchone()[0] or 0)
+        return jsonify(retention_days=365,cutoff=cutoff,expired_mood_logs=mood,expired_activity_logs=activity)
+
+    @app.post("/admin/api/retention/purge")
+    @admin_bearer
+    def admin_retention_purge():
+        cutoff=(date.today()-timedelta(days=365)).isoformat()
+        with connect() as db:
+            mood=db.execute("DELETE FROM mood_logs WHERE day<?",(cutoff,)).rowcount
+            activity=db.execute("DELETE FROM activity_logs WHERE day<?",(cutoff,)).rowcount
+        audit("retention_purge","",json.dumps({"mood_logs":mood,"activity_logs":activity,"cutoff":cutoff}))
+        return jsonify(status="purged",cutoff=cutoff,mood_logs=mood,activity_logs=activity)
+
     @app.get("/admin/api/system")
     @admin_bearer
     def admin_system():
@@ -795,14 +857,16 @@ def register_admin_routes(
                 for row in db.execute(
                     """SELECT name FROM sqlite_master
                        WHERE type='table' AND name IN
-                       ('users','mood_logs','activity_logs','announcements','admin_audit','activity_catalog')"""
+                       ('users','mood_logs','activity_logs','announcements','admin_audit','activity_catalog','admin_sessions')"""
                 ).fetchall()
             }
             integrity = db.execute("PRAGMA quick_check").fetchone()[0]
         return jsonify(
             service="Mood Insight optional Flask backend",
             admin_configured=bool(admin_password),
+            admin_mfa_configured=bool(admin_totp_secret),
             admin_token_ttl_seconds=int(app.config.get("ADMIN_TOKEN_TTL", 1800)),
+            active_admin_sessions=int(tables.get("admin_sessions",0)),
             max_request_bytes=int(app.config.get("MAX_CONTENT_LENGTH", 0)),
             retention_days=365,
             database_bytes=db_bytes,
