@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import type {Entry, EntryInput, Session} from '../types';
 import {localDay} from '../insights';
 import {DEFAULT_PREFERENCES} from '../deep';
-import {isValidContextCsv} from '../context';
+import {isValidContextCsv} from '../context.ts';
 import type {Preferences} from '../deep';
 import {validateBackupPayload} from '../backup';
 import type {BackupPayload} from '../backup';
