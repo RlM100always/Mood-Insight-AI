@@ -119,7 +119,11 @@ export function activityOutcomeInsights(sessions:Session[]):ActivityOutcome[]{
   const out:ActivityOutcome[]=[];
   for(const [id,items] of groups){
     const rated=items.filter(s=>s.helpful===0||s.helpful===1),helpful=rated.filter(s=>s.helpful===1).length;
-    const mood=items.filter(s=>s.mood_before!==null&&s.mood_after!==null);
+    const mood=items.filter(s=>{
+      const before=s.mood_before,after=s.mood_after;
+      return typeof before==='number'&&Number.isInteger(before)&&before>=1&&before<=5&&
+        typeof after==='number'&&Number.isInteger(after)&&after>=1&&after<=5;
+    });
     const seconds=items.map(s=>s.duration_seconds||0).filter(n=>n>=0);
     out.push({id,attempts:items.length,rated:rated.length,helpful,
       helpfulRate:rated.length?helpful/rated.length:null,
