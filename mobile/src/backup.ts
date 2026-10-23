@@ -53,12 +53,11 @@ export function validateBackupPayload(value:unknown):BackupPayload{
   sessionIds.add(s.id);
  }
  const pref=p.preferences as Preferences;
- if(pref&&typeof pref.favorite_activity_ids==='undefined')pref.favorite_activity_ids='';
+ const favoriteIds=pref&&typeof pref.favorite_activity_ids==='string'?pref.favorite_activity_ids:'';
  if(!pref||!['balance','calm','sleep','energy','connection'].includes(pref.focus)||![5,10,15,20,30].includes(pref.max_minutes)||
   !Number.isInteger(pref.weekly_checkins)||pref.weekly_checkins<1||pref.weekly_checkins>7||!Number.isInteger(pref.weekly_activities)||pref.weekly_activities<1||pref.weekly_activities>14||
-  typeof pref.favorite_activity_ids!=='string'||pref.favorite_activity_ids.length>1000||
-  pref.favorite_activity_ids.split(',').filter(Boolean).some(id=>!/^[a-z][a-z0-9_]{1,29}$/.test(id)))return fail('Backup preferences are invalid. Nothing was restored.');
- return p as BackupPayload;
+  favoriteIds.length>1000||favoriteIds.split(',').filter(Boolean).some(id=>!/^[a-z][a-z0-9_]{1,29}$/.test(id)))return fail('Backup preferences are invalid. Nothing was restored.');
+ return {...p,preferences:{...pref,favorite_activity_ids:favoriteIds}} as BackupPayload;
 }
 export async function encryptBackup(payload:BackupPayload,passphrase:string,random:(size:number)=>Uint8Array=randomBytes):Promise<string>{
  const valid=validateBackupPayload(payload);
