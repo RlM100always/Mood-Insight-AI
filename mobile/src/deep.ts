@@ -193,8 +193,10 @@ export function recommendationPlan(
   for(const session of sessions){
     const old=ratings.get(session.activity_id)||{count:0,good:0,moodCount:0,moodShift:0};
     if(session.helpful===0||session.helpful===1){old.count+=1;old.good+=session.helpful;}
-    if(session.mood_before!==null&&session.mood_after!==null){
-      old.moodCount+=1;old.moodShift+=session.mood_after-session.mood_before;
+    const before=session.mood_before,after=session.mood_after;
+    if(typeof before==='number'&&Number.isInteger(before)&&before>=1&&before<=5&&
+       typeof after==='number'&&Number.isInteger(after)&&after>=1&&after<=5){
+      old.moodCount+=1;old.moodShift+=after-before;
     }
     ratings.set(session.activity_id,old);
   }
