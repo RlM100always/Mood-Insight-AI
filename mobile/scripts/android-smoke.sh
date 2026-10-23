@@ -333,11 +333,25 @@ find_and_tap "Confirm backup passphrase"
 adb shell input text "$BACKUP_PASSPHRASE"
 adb shell input keyevent 4 || true
 find_and_tap "Export encrypted backup"
-sleep 3
+sleep 4
+# expo-sharing uses an Android system activity. On the AOSP CI image, cancelling
+# that activity can leave Launcher in front even though the RN process is alive.
+# Bring the existing task back explicitly, then assert the app's post-share status.
 adb shell input keyevent 4 || true
+sleep 2
+adb shell am start -W -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1
 sleep 3
+capture || true
+if ! grep -Fq 'Your data. Your choice.' window.xml; then
+  find_and_tap "More tab"
+  scroll_to_top
+  wait_for_text "More control, less clutter"
+  find_and_tap "Open Privacy & data"
+  scroll_to_top
+  wait_for_text_while_scrolling "Your data. Your choice."
+fi
 wait_for_text_while_scrolling "Encrypted backup prepared"
-echo "PASS: encrypted backup export completed through the native share sheet"
+echo "PASS: encrypted backup export completed through the native share sheet and returned to app"
 
 # Wrong passphrase must fail before a restore confirmation or any database change.
 enter_backup_passphrase "WrongPasswordForE2E2026"
