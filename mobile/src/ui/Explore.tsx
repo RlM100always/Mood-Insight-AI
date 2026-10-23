@@ -6,6 +6,7 @@ import type {Preferences} from '../deep';
 import {contextInsights,review,weekdayInsights,weeklyGoalProgress} from '../deep';
 import {localDay} from '../insights';
 import {Panel,Heading,Choose,Meter,st,colors} from './Shared';
+import {PatternDepth,ProgressDepth} from './AdvancedInsights';
 
 export function InsightExplorer({entries,sessions}: {entries:Entry[];sessions:Session[]}) {
  const data=review(entries,sessions);
@@ -20,6 +21,7 @@ export function InsightExplorer({entries,sessions}: {entries:Entry[];sessions:Se
   <Text style={st.body}>Difference from previous week: {data.delta===null?'Not enough data':(data.delta>0?'+':'')+data.delta.toFixed(1)+' points'}</Text>
   <Text style={st.sub}>Your logged days only. A difference does not prove the reason your mood changed.</Text>
  </Panel>
+ <PatternDepth entries={entries}/>
  <Panel><Text style={st.title}>30-day mood distribution</Text>
   {data.sampleSize===0?<Text style={st.sub}>No entries yet.</Text>:
   data.distribution.map((n,i)=><View key={i} style={{flexDirection:'row',alignItems:'center',gap:10}}>
@@ -87,6 +89,7 @@ export function ProgressExplorer({entries,sessions,preferences,onPreferences}:{
   <Text style={st.body}>{data.rated?data.helpful+' of '+data.rated+' rated activities felt helpful to you.':'After trying an activity, rate it as helpful or not helpful to begin your personal feedback history.'}</Text>
   <Text style={st.sub}>Personal reflection only; it is not evidence of clinical treatment effectiveness.</Text>
  </Panel>
+ <ProgressDepth entries={entries} sessions={sessions}/>
  <Panel><Text style={st.title}>More of your progress</Text>
   <Text style={st.body}>{sessions.length} lifetime activities · {Math.round(data.activityMinutes)} timed minutes this week · {data.notes} days with journal notes this week.</Text>
   <Text style={st.sub}>Your reflections remain encrypted locally. No shared leaderboard.</Text>
