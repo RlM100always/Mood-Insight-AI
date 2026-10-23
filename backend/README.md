@@ -40,6 +40,8 @@ export MOOD_ADMIN_PASSWORD="<16+ character separate admin password>"
 python -m backend.app
 ```
 
-The admin dashboard supports operational summary counts, backend account enable/disable and deletion, feature flags, public server announcements, and an admin audit trail. It intentionally does **not** expose decrypted profile data, raw mood payloads, journal text, or context tags. Normal user bearer tokens cannot access admin APIs. Admin tokens expire and are kept only in the browser page memory.
+The admin surface is now a full responsive operations console with Overview, Users, Engagement, Recommendations, Announcements, System & Controls, and Audit sections. It includes 30/90-day operational charts, user ID search/filter/sort, metadata-only user drill-downs, activity usage and feedback aggregates, recommendation-catalog editing, audited feature controls, expiring/severity-tagged announcements, system/database diagnostics, and metadata-only CSV export.
 
-Feature flags currently control new backend registration, backend recommendations, and the Australian aggregate research endpoint. The mobile app remains local-first; admin controls affect only the optional self-hosted backend, not the encrypted on-device SQLCipher journal unless the user explicitly connects to that backend.
+The admin intentionally does **not** expose decrypted profile data, raw mood values, journal text, context tags, or data stored only in the mobile SQLCipher vault. Normal user bearer tokens cannot access admin APIs. Admin tokens expire and are held only in browser memory.
+
+Feature flags control registration, backend mood intake, backend activity intake, recommendations, the Australian aggregate research endpoint, and announcement delivery. Recommendation catalog edits affect only the optional backend rule engine. The mobile app remains local-first; none of these admin controls provide a master key to the encrypted on-device journal.
