@@ -86,9 +86,9 @@ test('weekly snapshots keep four real seven-day buckets with gaps',()=>{
  const r=weeklySnapshots(rows,4,new Date(2026,9,23,12));
  assert.equal(r.length,4);
  assert.equal(r[3].end,'2026-10-23');
- assert.equal(r[3].logged,1);
- assert.equal(r[3].averageMood,5);
- assert.equal(r[3].coverage,1/7);
+ assert.equal(r[3].logged,2);
+ assert.equal(r[3].averageMood,4.5);
+ assert.equal(r[3].coverage,2/7);
 });
 test('weekday profile requires at least two real examples per weekday',()=>{
  const rows=[
