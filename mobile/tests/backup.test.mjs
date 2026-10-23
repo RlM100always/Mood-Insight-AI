@@ -35,7 +35,7 @@ test('backup rejects weak passphrases, malformed envelopes and oversized payload
 test('backup validation rejects malformed optional provenance and activity durations',()=>{
  assert.throws(()=>validateBackupPayload({...payload,entries:[{...payload.entries[0],sleep_recorded:2}]}),/invalid or expired/);
  assert.equal(validateBackupPayload({...payload,entries:[{...payload.entries[0],context_tags:'Custom context'}]}).entries[0].context_tags,'Custom context');
- assert.throws(()=>validateBackupPayload({...payload,entries:[{...payload.entries[0],context_tags:'bad,comma,inside'}]}),/invalid or expired/);
+ assert.throws(()=>validateBackupPayload({...payload,entries:[{...payload.entries[0],context_tags:'This context label is definitely too long'}]}),/invalid or expired/);
  assert.throws(()=>validateBackupPayload({...payload,sessions:[{...payload.sessions[0],duration_seconds:7201}]}),/invalid activity history/);
  assert.throws(()=>validateBackupPayload({...payload,sessions:[...payload.sessions,{...payload.sessions[0],id:'session-1'}]}),/invalid activity history/);
 });
