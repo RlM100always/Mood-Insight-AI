@@ -861,12 +861,17 @@ def register_admin_routes(
                 ).fetchall()
             }
             integrity = db.execute("PRAGMA quick_check").fetchone()[0]
+            now = int(time.time())
+            active_sessions = int(db.execute(
+                "SELECT COUNT(*) FROM admin_sessions WHERE revoked_at IS NULL AND expires_at>?",
+                (now,),
+            ).fetchone()[0] or 0)
         return jsonify(
             service="Mood Insight optional Flask backend",
             admin_configured=bool(admin_password),
             admin_mfa_configured=bool(admin_totp_secret),
             admin_token_ttl_seconds=int(app.config.get("ADMIN_TOKEN_TTL", 1800)),
-            active_admin_sessions=int(tables.get("admin_sessions",0)),
+            active_admin_sessions=active_sessions,
             max_request_bytes=int(app.config.get("MAX_CONTENT_LENGTH", 0)),
             retention_days=365,
             database_bytes=db_bytes,
