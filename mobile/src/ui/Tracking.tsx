@@ -2,6 +2,7 @@ import React,{useMemo,useState} from 'react';
 import {Pressable,Text,TextInput,View} from 'react-native';
 import type {Entry,MoodScore} from '../types';
 import {CONTEXT_TAGS,filterJournal} from '../deep';
+import {MAX_CONTEXT_TAGS,normalizeContextTag,isValidContextTag} from '../context';
 import {readableDay} from '../insights';
 import {Choose,Heading,Panel,st,colors} from './Shared';
 
@@ -9,6 +10,14 @@ export function AdditionalCheckin({energy,onEnergy,quality,onQuality,tags,onTags
  energy:MoodScore|null;onEnergy:(x:MoodScore|null)=>void;quality:MoodScore|null;onQuality:(x:MoodScore|null)=>void;
  tags:string[];onTags:(x:string[])=>void
 }){
+ const [custom,setCustom]=useState('');
+ const addCustom=()=>{
+  const value=normalizeContextTag(custom);
+  if(!isValidContextTag(value)||tags.length>=MAX_CONTEXT_TAGS)return;
+  if(!tags.some(x=>x.toLocaleLowerCase()===value.toLocaleLowerCase()))onTags([...tags,value]);
+  setCustom('');
+ };
+ const customTags=tags.filter(x=>!CONTEXT_TAGS.some(p=>p===x));
  return <View style={{gap:9,marginBottom:16}}>
  <Text style={st.label}>ENERGY · OPTIONAL{energy===null?' · NOT LOGGED':' · '+energy+'/5'}</Text>
  <View style={st.row}><Choose text="Skip" selected={energy===null} onPress={()=>onEnergy(null)}/>
@@ -20,8 +29,21 @@ export function AdditionalCheckin({energy,onEnergy,quality,onQuality,tags,onTags
  <Choose key={x} text={String(x)} selected={x===quality} onPress={()=>onQuality(x)}/>)}</View>
  <Text style={st.label}>CONTEXTS THAT FIT TODAY · OPTIONAL</Text>
  <View style={st.row}>{CONTEXT_TAGS.map(x=><Choose key={x} text={x}
- selected={tags.includes(x)} onPress={()=>onTags(tags.includes(x)?tags.filter(t=>t!==x):[...tags,x])}/>)}</View>
- <Text style={st.sub}>Context labels improve comparisons once there are enough recorded days.</Text>
+ selected={tags.includes(x)} onPress={()=>onTags(tags.includes(x)?tags.filter(t=>t!==x):(tags.length<MAX_CONTEXT_TAGS?[...tags,x]:tags))}/>)}</View>
+ {customTags.length?<View style={{gap:7}}>
+  <Text style={st.sub}>Your custom contexts</Text>
+  <View style={st.row}>{customTags.map(x=><Choose key={x} text={'× '+x} selected={true} onPress={()=>onTags(tags.filter(t=>t!==x))}/>)}</View>
+ </View>:null}
+ <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
+  <TextInput accessibilityLabel="Custom context label" value={custom} onChangeText={setCustom}
+   onSubmitEditing={addCustom} returnKeyType="done" maxLength={24} placeholder="Add your own context"
+   placeholderTextColor={colors.sub} style={{flex:1,minHeight:48,backgroundColor:colors.bg,borderWidth:1,borderColor:colors.line,borderRadius:12,paddingHorizontal:12,color:colors.ink}}/>
+  <Pressable accessibilityRole="button" accessibilityLabel="Add custom context" disabled={!isValidContextTag(custom)||tags.length>=MAX_CONTEXT_TAGS}
+   onPress={addCustom} style={{minHeight:48,minWidth:54,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:isValidContextTag(custom)&&tags.length<MAX_CONTEXT_TAGS?colors.main:colors.line}}>
+   <Text style={{fontWeight:'900',color:colors.white}}>Add</Text>
+  </Pressable>
+ </View>
+ <Text style={st.sub}>{tags.length}/{MAX_CONTEXT_TAGS} selected. Context labels stay on-device and improve comparisons once there are enough recorded days.</Text>
  </View>;
 }
 export function JournalSearch({entries,onEdit,onDelete}:{
