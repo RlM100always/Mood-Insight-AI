@@ -43,6 +43,8 @@ test('Android smoke exercises encrypted backup export, restore and failure cases
   assert.ok(script.includes('PASS: encrypted backup export completed through the native share sheet'));
   assert.ok(script.includes('return_from_share_sheet'));
   assert.ok(script.includes("grep -Fq \"$PACKAGE\""));
+  assert.ok(script.includes("mResumedActivity"));
+  assert.ok(script.includes("mCurrentFocus|mFocusedApp"));
   assert.ok(script.includes('WrongPasswordForE2E2026'));
   assert.ok(script.includes('mood-insight-e2e-backup-tampered.mibak'));
   assert.ok(script.includes('E2E_SHOULD_NOT_OVERWRITE_LOCAL_ENTRY'));
