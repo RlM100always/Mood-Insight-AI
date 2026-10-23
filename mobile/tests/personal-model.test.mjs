@@ -15,7 +15,9 @@ test('personal experiment uses consecutive local check-ins and chronological hol
  const logs=fixture(),r=evaluatePersonalMood(logs,logs.at(-1).day);
  assert.ok(r.pairs>=30);assert.ok(r.holdout>=6);assert.equal(r.evidence,'local-real-checkins-only');
  assert.ok(['ready','baseline-wins','need-variation'].includes(r.status));
- if(r.status==='ready'){assert.ok(r.predictedMood>=1&&r.predictedMood<=5);assert.ok(r.modelAccuracy>=r.baselineAccuracy+.05);assert.ok(r.modelMae<r.baselineMae);}
+ if(r.status==='ready'){assert.ok(r.predictedMood>=1&&r.predictedMood<=5);assert.ok(r.modelAccuracy>=r.baselineAccuracy+.05);assert.ok(r.modelMae<r.baselineMae);
+  assert.ok(r.modelConfidence>0&&r.modelConfidence<=1);assert.equal(r.probabilityByMood.length,5);
+  assert.ok(Math.abs(r.probabilityByMood.reduce((a,b)=>a+b,0)-1)<1e-6);assert.ok(r.topInputs.length>0);}
 });
 test('model refuses sparse, skipped, missing-day and stale check-ins',()=>{
  const logs=fixture();assert.equal(evaluatePersonalMood(logs.slice(-10),logs.at(-1).day).status,'need-history');

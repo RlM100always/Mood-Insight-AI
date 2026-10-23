@@ -2,7 +2,11 @@ import type {Entry, MoodScore} from '../types';
 import {localDay} from '../insights.ts';
 type Row={x:number[];y:number;day:string};
 type Status='ready'|'need-history'|'need-variation'|'needs-today-checkin'|'needs-complete-checkin'|'baseline-wins';
-export type PersonalMoodReport={status:Status;message:string;pairs:number;holdout:number;modelAccuracy:number|null;baselineAccuracy:number|null;modelMae:number|null;baselineMae:number|null;predictedMood:MoodScore|null;evidence:'local-real-checkins-only'};
+export type PersonalMoodReport={
+ status:Status;message:string;pairs:number;holdout:number;modelAccuracy:number|null;baselineAccuracy:number|null;
+ modelMae:number|null;baselineMae:number|null;predictedMood:MoodScore|null;modelConfidence:number|null;
+ probabilityByMood:number[]|null;topInputs:string[];evidence:'local-real-checkins-only'
+};
 const FEATURE_NAMES=['previous mood','sleep hours','movement minutes','stress level','day of week'];
 const MIN_PAIRS=30;
 function ordinal(day:string):number|null{
@@ -66,7 +70,7 @@ function mode(values:number[]):number{
  let best=1;for(let i=2;i<=5;i++)if(counts[i]>counts[best])best=i;return best;
 }
 function blank(status:Status,message:string,pairs=0,holdout=0):PersonalMoodReport{
- return {status,message,pairs,holdout,modelAccuracy:null,baselineAccuracy:null,modelMae:null,baselineMae:null,predictedMood:null,evidence:'local-real-checkins-only'};
+ return {status,message,pairs,holdout,modelAccuracy:null,baselineAccuracy:null,modelMae:null,baselineMae:null,predictedMood:null,modelConfidence:null,probabilityByMood:null,topInputs:[],evidence:'local-real-checkins-only'};
 }
 /** Exploratory per-user model: consecutive local records only; chronological holdout; never a clinical forecast. */
 export function evaluatePersonalMood(entries:Entry[],today=localDay()):PersonalMoodReport{
@@ -89,7 +93,11 @@ export function evaluatePersonalMood(entries:Entry[],today=localDay()):PersonalM
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
  if(!latest||latest.day!==today)return {...blank('needs-today-checkin','The personal model passed a small historical comparison, but needs today’s check-in before showing an exploratory next-day pattern.',rows.length,test.length),...common};
  if(!hasRecordedPredictors(latest))return {...blank('needs-complete-checkin','Record sleep, movement and stress today to run this experiment. Skipped fields are never guessed.',rows.length,test.length),...common};
- const finalModel=fit(rows),scores=probabilities(finalModel,vector(latest));let predicted=1;
+ const finalModel=fit(rows),latestVector=vector(latest),scores=probabilities(finalModel,latestVector);let predicted=1;
  for(let i=1;i<5;i++)if(scores[i]>scores[predicted-1])predicted=i+1;
- return {...common,status:'ready',message:'This estimate uses your own consecutive check-ins only. It is not a diagnosis or a basis for health decisions.',predictedMood:predicted as MoodScore};
+ const normalized=latestVector.map((v,j)=>(v-finalModel.mean[j])/finalModel.scale[j]);
+ const topInputs=FEATURE_NAMES.map((name,j)=>({name,impact:Math.abs(finalModel.weights[predicted-1][j]*normalized[j])}))
+  .sort((a,b)=>b.impact-a.impact).slice(0,3).map(x=>x.name);
+ return {...common,status:'ready',message:'This estimate uses your own consecutive check-ins only. It is not a diagnosis or a basis for health decisions.',
+  predictedMood:predicted as MoodScore,modelConfidence:scores[predicted-1],probabilityByMood:scores,topInputs};
 }

@@ -20,6 +20,8 @@ The native Patterns screen now includes an offline explorer for **real ABS 2020â
 - Native screens: mood check-ins with optional sleep/stress/movement fields, situation-aware guided actions, journal, trends, next-step suggestions, human-support directory and privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore
 - Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
+- **Deeper personal analytics:** 7/30/90-day summaries, logging coverage, mood variability and trend, sleep/movement/stress/energy/sleep-quality correlations with sample thresholds, streak/consistency views, and activity outcome summaries
+- **Richer local learning:** activity ranking can use both helpfulness ratings and optional beforeâ†’after mood pairs; journal search supports mood/context/note filters; all missing optional measurements stay missing rather than being guessed
 - **Personal learning experiment:** the Patterns screen no longer shows synthetic-model predictions. Its small on-device experiment learns only from the user's own consecutive-day check-ins and suppresses estimates unless a chronological holdout beats a simple baseline. It is not a clinical prediction model and is not Australian-population-trained.
 - Exporter to fit the same ML runtime from authentic consented research data, plus Random Forest/Decision Tree/Logistic Regression/MLP research comparison scripts
 
