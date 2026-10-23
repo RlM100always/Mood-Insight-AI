@@ -10,6 +10,9 @@
 - Synthetic model predictions are removed from the user-facing app. Personal learning uses local consecutive-day check-ins and a chronological holdout; it suppresses results when the holdout does not beat a simple baseline.
 - Portable backup uses PBKDF2-SHA256 and AES-256-GCM with random salt/nonce and authenticated ciphertext. Restore validates the payload before merging; existing same-day local entries are not overwritten.
 - Automated tests cover bad passphrases, ciphertext tampering, malformed payloads, model eligibility and missing measurements.
+- Optional backend administration now supports revocable server-side sessions, optional TOTP MFA, audited login failures, strict same-origin script CSP, frame denial, permissions policy, safe declarative recommendation rules, retention preview/purge, and activation/cohort analytics without exposing decrypted user payloads.
+- Mobile personalisation adds validated custom context labels and encrypted favourite-activity preferences; legacy encrypted backup preferences remain restorable without mutating source payloads.
+- See INDUSTRY_READINESS.md for the MASVS/ASVS/WCAG-oriented self-assessment and remaining evidence gates.
 
 ## Remaining release blockers
 
