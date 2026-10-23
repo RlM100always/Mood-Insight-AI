@@ -9,8 +9,8 @@ This is a manual acceptance record. CI emulators and simulators do not prove beh
 - [ ] Add an entry with sleep/movement/stress; confirm skipped fields show “not logged”.
 - [ ] Edit an existing day; confirm no duplicate date is created.
 - [ ] Search journal; edit and delete a disposable entry.
-- [ ] Complete a guided activity, rate it, restart and confirm progress persists.
-- [ ] On Patterns, verify Australian ABS evidence is clearly labelled as aggregate context—not individual training data.
+- [ ] Complete a guided activity, rate it, restart and confirm progress persists; verify Progress is reachable through More.
+- [ ] On Insights, verify Australian ABS evidence is clearly labelled as aggregate context—not individual training data.
 - [ ] With sparse or incomplete fictional check-ins, verify the personal-learning experiment shows an eligibility/insufficient-history state and no fabricated prediction. Never expect synthetic demo probabilities or an Australian-trained label.
 - [ ] Export an encrypted backup with a 12+ character passphrase; verify the file does not reveal readable journal text.
 - [ ] Restore on a clean test installation; confirm entries, notes, activity history and preferences.
