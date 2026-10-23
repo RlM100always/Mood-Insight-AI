@@ -70,6 +70,38 @@ def register_admin_routes(
         except (TypeError, ValueError, json.JSONDecodeError):
             return default
 
+    def verify_totp(code: str) -> bool:
+        if not admin_totp_secret:
+            return True
+        if not isinstance(code, str) or not re.fullmatch(r"\d{6}", code):
+            return False
+        try:
+            normalized = admin_totp_secret.strip().replace(" ", "").upper()
+            padding = "=" * ((8 - len(normalized) % 8) % 8)
+            key = base64.b32decode(normalized + padding, casefold=True)
+        except (ValueError, TypeError, base64.binascii.Error):
+            return False
+        counter = int(time.time() // 30)
+        for drift in (-1, 0, 1):
+            digest = hmac.new(key, struct.pack(">Q", counter + drift), hashlib.sha1).digest()
+            offset = digest[-1] & 0x0F
+            binary = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+            expected = str(binary % 1000000).zfill(6)
+            if secrets.compare_digest(expected, code):
+                return True
+        return False
+
+    def create_admin_session() -> tuple[str, int]:
+        sid = secrets.token_hex(24)
+        now = int(time.time())
+        ttl = int(app.config.get("ADMIN_TOKEN_TTL", 1800))
+        with connect() as db:
+            db.execute("DELETE FROM admin_sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)", (now - 86400, now - 604800))
+            db.execute(
+                "INSERT INTO admin_sessions(id,created_at,expires_at,revoked_at,last_seen_at) VALUES (?,?,?,?,?)",
+                (sid, now, now + ttl, None, now),
+            )
+        return sid, ttl
     def admin_bearer(func):
         @wraps(func)
         def wrapped(*args, **kwargs):
@@ -80,11 +112,21 @@ def register_admin_routes(
                 payload = admin_signer.loads(
                     auth[7:], max_age=int(app.config.get("ADMIN_TOKEN_TTL", 1800))
                 )
-                if payload.get("role") != "admin":
-                    raise BadSignature("wrong role")
+                if payload.get("role") != "admin" or not isinstance(payload.get("sid"), str):
+                    raise BadSignature("wrong role or session")
             except (BadSignature, SignatureExpired, TypeError, AttributeError):
                 return jsonify(error="Invalid or expired admin token"), 401
+            now = int(time.time())
+            with connect() as db:
+                session = db.execute(
+                    "SELECT id,expires_at,revoked_at FROM admin_sessions WHERE id=?",
+                    (payload["sid"],),
+                ).fetchone()
+                if session is None or session["revoked_at"] is not None or int(session["expires_at"]) <= now:
+                    return jsonify(error="Admin session is revoked or expired"), 401
+                db.execute("UPDATE admin_sessions SET last_seen_at=? WHERE id=?", (now, payload["sid"]))
             g.admin = True
+            g.admin_session_id = payload["sid"]
             return func(*args, **kwargs)
         return wrapped
 
