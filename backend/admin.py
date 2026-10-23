@@ -175,6 +175,18 @@ def register_admin_routes(
             return Response("Admin dashboard asset missing.", status=500, mimetype="text/plain")
         return Response(DASHBOARD_PATH.read_text(encoding="utf8"), mimetype="text/html")
 
+    @app.get("/admin/assets/admin.css")
+    def admin_css():
+        if not DASHBOARD_CSS_PATH.exists():
+            return Response("/* admin css missing */", status=500, mimetype="text/css")
+        return Response(DASHBOARD_CSS_PATH.read_text(encoding="utf8"), mimetype="text/css")
+
+    @app.get("/admin/assets/admin.js")
+    def admin_js():
+        if not DASHBOARD_JS_PATH.exists():
+            return Response("throw new Error('admin js missing');", status=500, mimetype="application/javascript")
+        return Response(DASHBOARD_JS_PATH.read_text(encoding="utf8"), mimetype="application/javascript")
+
     @app.post("/admin/login")
     @auth_rate_limit("admin-login")
     def admin_login():
@@ -182,13 +194,70 @@ def register_admin_routes(
             return jsonify(error="Admin access is not configured on this server."), 503
         value = request.get_json(silent=True)
         supplied = value.get("password") if isinstance(value, dict) else None
+        totp = value.get("totp", "") if isinstance(value, dict) else ""
         if not isinstance(supplied, str) or not secrets.compare_digest(supplied, admin_password):
+            audit("admin_login_failed", "", "password")
             return jsonify(error="Invalid admin credentials"), 401
-        audit("admin_login")
+        if not verify_totp(totp):
+            audit("admin_login_failed", "", "totp")
+            return jsonify(error="Invalid administrator verification code"), 401
+        sid, ttl = create_admin_session()
+        audit("admin_login", sid[:12], "mfa" if admin_totp_secret else "password-only")
         return jsonify(
-            token=admin_signer.dumps({"role": "admin"}),
-            expires_in_seconds=int(app.config.get("ADMIN_TOKEN_TTL", 1800)),
+            token=admin_signer.dumps({"role": "admin", "sid": sid}),
+            expires_in_seconds=ttl,
+            mfa_required=bool(admin_totp_secret),
         )
+
+    @app.post("/admin/logout")
+    @admin_bearer
+    def admin_logout():
+        now = int(time.time())
+        with connect() as db:
+            db.execute("UPDATE admin_sessions SET revoked_at=? WHERE id=?", (now, g.admin_session_id))
+        audit("admin_logout", g.admin_session_id[:12])
+        return jsonify(status="logged_out")
+
+    @app.get("/admin/api/session")
+    @admin_bearer
+    def admin_session():
+        with connect() as db:
+            row = db.execute(
+                "SELECT id,created_at,expires_at,last_seen_at FROM admin_sessions WHERE id=?",
+                (g.admin_session_id,),
+            ).fetchone()
+        return jsonify(
+            session=dict(row) if row else None,
+            mfa_configured=bool(admin_totp_secret),
+            password_configured=bool(admin_password),
+        )
+
+    @app.get("/admin/api/sessions")
+    @admin_bearer
+    def admin_sessions():
+        now = int(time.time())
+        with connect() as db:
+            rows = db.execute(
+                """SELECT id,created_at,expires_at,last_seen_at,
+                   CASE WHEN revoked_at IS NULL AND expires_at>? THEN 1 ELSE 0 END active
+                   FROM admin_sessions ORDER BY created_at DESC LIMIT 50""",
+                (now,),
+            ).fetchall()
+        return jsonify(sessions=[{**dict(row), "current": row["id"] == g.admin_session_id} for row in rows])
+
+    @app.post("/admin/api/sessions/<session_id>/revoke")
+    @admin_bearer
+    def admin_revoke_session(session_id: str):
+        now = int(time.time())
+        with connect() as db:
+            changed = db.execute(
+                "UPDATE admin_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL",
+                (now, session_id),
+            ).rowcount
+        if not changed:
+            return jsonify(error="Active admin session not found"), 404
+        audit("admin_session_revoked", session_id[:12])
+        return jsonify(status="revoked", session_id=session_id)
 
     @app.get("/admin/api/summary")
     @admin_bearer
