@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Mood Insight · Admin Console</title>
+<style>
+:root{
+  --bg:#f5f7f8;--panel:#fff;--ink:#162225;--muted:#6d7a7d;--line:#e3e9e8;
+  --brand:#164f4a;--brand2:#2d776e;--brandSoft:#e8f3f0;--warm:#fff3e5;
+  --danger:#a03d43;--dangerSoft:#fdebed;--shadow:0 14px 40px rgba(23,48,46,.08);
+  --radius:18px;--sidebar:244px
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.shell{min-height:100vh;display:grid;grid-template-columns:var(--sidebar) 1fr}
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);background:#103b38;color:#fff;padding:22px 16px;display:flex;flex-direction:column;z-index:10}
+.brand{display:flex;gap:11px;align-items:center;padding:8px 8px 20px}
+.logo{width:38px;height:38px;border-radius:13px;background:linear-gradient(145deg,#71b7aa,#e0f0ea);display:grid;place-items:center;color:#103b38;font-weight:900}
+.brand b{font-size:15px}.brand small{display:block;color:#a8c8c2;font-size:11px;margin-top:2px}
+.nav{display:grid;gap:5px}.nav button{display:flex;align-items:center;gap:11px;width:100%;border:0;background:transparent;color:#bdd2ce;padding:11px 12px;border-radius:12px;text-align:left;font-weight:700}
+.nav button:hover,.nav button.active{background:rgba(255,255,255,.11);color:#fff}
+.navIcon{width:24px;height:24px;border:1px solid rgba(255,255,255,.22);border-radius:8px;display:grid;place-items:center;font-size:11px}
+.sideFoot{margin-top:auto;border-top:1px solid rgba(255,255,255,.12);padding:14px 8px 0;color:#a8c8c2;font-size:11px;line-height:1.5}
+.main{grid-column:2;padding:0 28px 40px;min-width:0}
+.topbar{height:78px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;background:rgba(245,247,248,.9);backdrop-filter:blur(14px);z-index:8}
+.pageTitle h1{font-size:23px;margin:0}.pageTitle p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.topActions{display:flex;align-items:center;gap:9px}
+.btn{border:1px solid transparent;border-radius:11px;padding:9px 13px;font-weight:800;font-size:12px;background:var(--brand);color:#fff}
+.btn:hover{filter:brightness(.97)}.btn.secondary{background:#fff;color:var(--ink);border-color:var(--line)}.btn.danger{background:var(--danger)}
+.iconBtn{width:38px;height:38px;padding:0}
+.privacy{background:linear-gradient(90deg,#eaf5f1,#f9fbfa);border:1px solid #d7e8e3;border-radius:15px;padding:12px 14px;font-size:12px;color:#42615d;margin-bottom:16px}
+.kpiGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.kpi{padding:17px;min-height:126px;position:relative;overflow:hidden}
+.kpi:after{content:"";position:absolute;width:88px;height:88px;border-radius:50%;right:-28px;top:-30px;background:var(--brandSoft)}
+.kpiLabel{font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:850;text-transform:uppercase}
+.kpiValue{font-size:31px;font-weight:900;margin-top:11px;letter-spacing:-.04em}.kpiSub{font-size:11px;color:var(--muted);margin-top:6px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.85fr);gap:14px;margin-top:14px}
+.grid2.equal{grid-template-columns:repeat(2,minmax(0,1fr))}
+.panel{padding:18px}.panelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.panelHead h2{font-size:15px;margin:0}.panelHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.segment{display:flex;gap:4px;background:#f1f4f4;border-radius:10px;padding:3px}.segment button{border:0;background:transparent;padding:6px 9px;border-radius:8px;font-size:11px;font-weight:800;color:var(--muted)}.segment button.active{background:white;color:var(--ink);box-shadow:0 2px 7px rgba(0,0,0,.06)}
+.chart{height:220px;position:relative}.chart svg{width:100%;height:100%;overflow:visible}.chartLabel{font-size:10px;fill:#84918f}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:7px}.legend span{font-size:11px;color:var(--muted)}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.barList{display:grid;gap:12px}.barRow{display:grid;grid-template-columns:minmax(95px,1.1fr) 2fr 52px;gap:9px;align-items:center;font-size:11px}.barTrack{height:8px;border-radius:999px;background:#edf1f0;overflow:hidden}.barFill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand2),#78aa9f)}
+.statMini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.statMini div{background:#f7f9f9;border-radius:12px;padding:12px}.statMini b{font-size:18px;display:block}.statMini span{font-size:10px;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.field,.select,.textarea{border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px 11px;color:var(--ink);outline:none}.field:focus,.select:focus,.textarea:focus{border-color:#94bbb4;box-shadow:0 0 0 3px #e7f1ef}.field{min-width:220px}.textarea{min-height:94px;resize:vertical;width:100%}
+.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}th,td{padding:11px 12px;border-bottom:1px solid #edf0f0;font-size:11px;text-align:left;vertical-align:middle}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:#fafbfb;position:sticky;top:0}
+tr:last-child td{border-bottom:0}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}.muted{color:var(--muted)}
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:850;background:#edf3f2;color:#42615d}.badge.active{background:#e7f6ef;color:#27654e}.badge.disabled{background:var(--dangerSoft);color:var(--danger)}.badge.dormant{background:#f2f2f2;color:#687271}.badge.new{background:#eaf0ff;color:#445fa8}.badge.important{background:#fee8eb;color:#9b3039}.badge.maintenance{background:#fff0dc;color:#8a5d20}
+.actions{display:flex;gap:5px;flex-wrap:wrap}.tiny{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:10px;font-weight:800}.tiny.danger{color:var(--danger);border-color:#f1cdd1}
+.empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formGrid .wide{grid-column:1/-1}
+.switchRow{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:9px}.switchMeta b{font-size:12px}.switchMeta p{font-size:10px;color:var(--muted);margin:4px 0 0;max-width:560px}.toggle{width:42px;height:24px;border:0;border-radius:99px;background:#cbd4d2;padding:3px;transition:.2s}.toggle:before{content:"";display:block;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.17)}.toggle.on{background:var(--brand2)}.toggle.on:before{transform:translateX(18px)}
+.reco{display:grid;grid-template-columns:1.6fr 85px 120px 75px 90px 72px;gap:8px;align-items:center;border-top:1px solid var(--line);padding:11px 0}.reco:first-child{border-top:0}.reco .field,.reco .select{min-width:0;width:100%;padding:8px}
+.drawerBackdrop{position:fixed;inset:0;background:rgba(10,25,24,.24);z-index:20}.drawer{position:fixed;right:0;top:0;bottom:0;width:min(470px,94vw);background:#fff;z-index:21;box-shadow:-20px 0 50px rgba(0,0,0,.14);padding:24px;overflow:auto}.drawerHead{display:flex;justify-content:space-between;gap:10px}.drawer h2{font-size:20px;margin:0}.drawerGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.drawerStat{padding:13px;border:1px solid var(--line);border-radius:13px}.drawerStat b{font-size:20px;display:block}.drawerStat span{font-size:10px;color:var(--muted)}
+.systemGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.sys{padding:14px;border:1px solid var(--line);border-radius:13px}.sys b{font-size:13px;display:block}.sys span{font-size:10px;color:var(--muted)}
+.toast{position:fixed;right:22px;bottom:22px;z-index:50;background:#153f3c;color:white;border-radius:12px;padding:12px 15px;font-size:11px;box-shadow:0 14px 35px rgba(0,0,0,.18)}
+.loginPage{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 15% 20%,#d7eee8 0,transparent 32%),radial-gradient(circle at 85% 75%,#f8e8d8 0,transparent 30%),#f4f7f6;padding:22px}.loginCard{width:min(440px,100%);background:white;border:1px solid var(--line);border-radius:26px;padding:28px;box-shadow:0 28px 70px rgba(18,55,51,.13)}.loginCard h1{font-size:27px;margin:15px 0 7px}.loginCard p{color:var(--muted);font-size:12px;line-height:1.6}.loginCard .field{width:100%;margin:10px 0}
+.mobileMenu{display:none}
+@media(max-width:1050px){.kpiGrid{grid-template-columns:repeat(2,1fr)}.grid2,.grid2.equal{grid-template-columns:1fr}.reco{grid-template-columns:1fr 76px 100px 64px 80px 64px}}
+@media(max-width:760px){.shell{display:block}.sidebar{transform:translateX(-100%);transition:.2s}.sidebar.open{transform:none}.main{padding:0 14px 30px}.mobileMenu{display:block}.topbar{height:68px}.kpiGrid{grid-template-columns:1fr 1fr}.systemGrid{grid-template-columns:1fr 1fr}.formGrid{grid-template-columns:1fr}.formGrid .wide{grid-column:auto}.reco{grid-template-columns:1fr 70px}.reco>*:nth-child(n+3){grid-column:auto}.pageTitle h1{font-size:19px}}
+@media(max-width:460px){.kpiGrid,.systemGrid,.drawerGrid{grid-template-columns:1fr}.topActions .labelBtn{display:none}}
+</style>
+</head>
+<body>
+<div id="loginPage" class="loginPage">
+  <div class="loginCard">
+    <div class="logo">MI</div>
+    <h1>Admin Console</h1>
+    <p>Operational control for the optional Mood Insight backend. Private journal text, profile details and raw mood payloads are intentionally outside this console.</p>
+    <input id="password" class="field" type="password" autocomplete="current-password" placeholder="Admin password">
+    <button class="btn" style="width:100%" onclick="login()">Sign in securely</button>
+    <p id="loginStatus"></p>
+  </div>
+</div>
+
+<div id="console" class="shell hidden">
+  <aside id="sidebar" class="sidebar">
+    <div class="brand"><div class="logo">MI</div><div><b>Mood Insight</b><small>Operations Console</small></div></div>
+    <nav class="nav">
+      <button class="active" data-tab="overview" onclick="showTab('overview',this)"><span class="navIcon">01</span>Overview</button>
+      <button data-tab="users" onclick="showTab('users',this)"><span class="navIcon">02</span>Users</button>
+      <button data-tab="engagement" onclick="showTab('engagement',this)"><span class="navIcon">03</span>Engagement</button>
+      <button data-tab="recommendations" onclick="showTab('recommendations',this)"><span class="navIcon">04</span>Recommendations</button>
+      <button data-tab="announcements" onclick="showTab('announcements',this)"><span class="navIcon">05</span>Announcements</button>
+      <button data-tab="controls" onclick="showTab('controls',this)"><span class="navIcon">06</span>System & Controls</button>
+      <button data-tab="audit" onclick="showTab('audit',this)"><span class="navIcon">07</span>Audit Log</button>
+    </nav>
+    <div class="sideFoot">Privacy-preserving administration<br>Metadata and aggregate operations only.</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn secondary iconBtn mobileMenu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <div class="pageTitle"><h1 id="pageName">Overview</h1><p id="pageDesc">Operational health and recent backend activity.</p></div>
+      </div>
+      <div class="topActions">
+        <button class="btn secondary labelBtn" onclick="refreshCurrent()">Refresh</button>
+        <button class="btn secondary" onclick="logout()">Log out</button>
+      </div>
+    </header>
+
+    <div class="privacy"><b>Privacy boundary:</b> Admin views intentionally exclude decrypted name/age, journal notes, context tags and raw mood values. User operations are based on opaque IDs and usage metadata.</div>
+
+    <section id="tab-overview">
+      <div id="kpis" class="kpiGrid"></div>
+      <div class="grid2">
+        <div class="card panel">
+          <div class="panelHead"><div><h2>Backend activity trend</h2><p>Daily counts; no mood values are decrypted.</p></div><div id="overviewRange" class="segment"><button class="active" onclick="setOverviewRange(30,this)">30d</button><button onclick="setOverviewRange(90,this)">90d</button></div></div>
+          <div id="trendChart" class="chart"></div>
+          <div class="legend"><span><i style="background:#2d776e"></i>Mood logs</span><span><i style="background:#d38d5b"></i>Activities</span><span><i style="background:#7890c5"></i>Active users</span></div>
+        </div>
+        <div class="card panel">
+          <div class="panelHead"><div><h2>Recommendation usage</h2><p>Most-used backend activity IDs.</p></div></div>
+          <div id="usageBars" class="barList"></div>
+        </div>
+      </div>
+      <div class="grid2 equal">
+        <div class="card panel"><div class="panelHead"><div><h2>Operational pulse</h2><p>Recent adoption and feedback signals.</p></div></div><div id="pulse" class="statMini"></div></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Data boundary</h2><p>What this console can and cannot inspect.</p></div></div><p class="muted" style="font-size:12px;line-height:1.7;margin:0">Visible: account IDs, timestamps, counts, activity IDs, duration metadata, helpful/not-helpful aggregates, feature configuration, audit events and service health.<br><br>Not visible: decrypted profile fields, raw mood scores, private notes, context tags, or local-only mobile data.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-users" class="hidden">
+      <div class="card panel">
+        <div class="panelHead"><div><h2>User directory</h2><p>Search and inspect backend-account metadata without opening private payloads.</p></div><button class="btn secondary" onclick="exportUsers()">Export metadata CSV</button></div>
+        <div class="toolbar">
+          <input id="userSearch" class="field" placeholder="Search user ID" oninput="debounceUsers()">
+          <select id="userStatus" class="select" onchange="loadUsers()"><option value="all">All statuses</option><option value="active">Active · 30d</option><option value="new">New · 7d</option><option value="dormant">Dormant</option><option value="disabled">Disabled</option></select>
+          <select id="userSort" class="select" onchange="loadUsers()"><option value="created_desc">Newest first</option><option value="last_seen_desc">Recently active</option><option value="mood_desc">Most mood logs</option><option value="activity_desc">Most activities</option><option value="created_asc">Oldest first</option></select>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>User</th><th>Status</th><th>Created</th><th>Last seen</th><th>Mood logs</th><th>Activities</th><th>Minutes</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div id="userPager" class="toolbar" style="margin-top:12px;justify-content:space-between"></div>
+      </div>
+    </section>
+
+    <section id="tab-engagement" class="hidden">
+      <div class="grid2">
+        <div class="card panel">
+          <div class="panelHead"><div><h2>Engagement timeline</h2><p>Registrations, active users, check-ins and activities.</p></div><select id="engagementDays" class="select" onchange="loadEngagement()"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div>
+          <div id="engagementChart" class="chart"></div>
+          <div class="legend"><span><i style="background:#2d776e"></i>Check-ins</span><span><i style="background:#d38d5b"></i>Activities</span><span><i style="background:#7890c5"></i>Active users</span><span><i style="background:#9c78b7"></i>Registrations</span></div>
+        </div>
+        <div class="card panel"><div class="panelHead"><div><h2>Activity feedback</h2><p>Descriptive usage, not clinical effectiveness.</p></div></div><div id="engagementUsage" class="barList"></div></div>
+      </div>
+    </section>
+
+    <section id="tab-recommendations" class="hidden">
+      <div class="card panel">
+        <div class="panelHead"><div><h2>Backend recommendation catalog</h2><p>Edit presentation, availability and tie-break priority for explainable backend rules.</p></div></div>
+        <div class="muted" style="font-size:11px;margin-bottom:10px">Priority only breaks ties after the hard-coded explainable context score. It does not turn the backend into a clinical model.</div>
+        <div id="recommendationRows"></div>
+      </div>
+    </section>
+
+    <section id="tab-announcements" class="hidden">
+      <div class="grid2 equal">
+        <div class="card panel">
+          <div class="panelHead"><div><h2>Publish announcement</h2><p>Shown only to clients that explicitly connect to this backend.</p></div></div>
+          <div class="formGrid">
+            <input id="annTitle" class="field wide" placeholder="Announcement title">
+            <textarea id="annBody" class="textarea wide" placeholder="Short operational message"></textarea>
+            <select id="annLevel" class="select"><option value="info">Info</option><option value="maintenance">Maintenance</option><option value="important">Important</option></select>
+            <input id="annExpiry" class="field" type="date" title="Optional expiry date">
+            <button class="btn wide" onclick="createAnnouncement()">Publish announcement</button>
+          </div>
+        </div>
+        <div class="card panel"><div class="panelHead"><div><h2>Communication rules</h2><p>Safe defaults for a wellbeing product.</p></div></div><p class="muted" style="font-size:12px;line-height:1.7">Announcements are operational notices, not therapy or emergency messaging. They can expire automatically. Turning off the Announcements feature flag returns an empty public feed without deleting draft/history records.</p></div>
+      </div>
+      <div class="card panel" style="margin-top:14px"><div class="panelHead"><div><h2>Announcement history</h2><p>Active, paused and expired messages.</p></div></div><div id="announcementsList"></div></div>
+    </section>
+
+    <section id="tab-controls" class="hidden">
+      <div class="grid2">
+        <div class="card panel"><div class="panelHead"><div><h2>Feature controls</h2><p>Live backend switches with audited changes.</p></div></div><div id="flags"></div></div>
+        <div class="card panel"><div class="panelHead"><div><h2>System diagnostics</h2><p>Runtime and storage health without decrypted payload access.</p></div></div><div id="systemGrid" class="systemGrid"></div></div>
+      </div>
+      <div class="card panel" style="margin-top:14px"><div class="panelHead"><div><h2>Database record counts</h2><p>Operational inventory by table.</p></div></div><div id="tableCounts" class="barList"></div></div>
+    </section>
+
+    <section id="tab-audit" class="hidden">
+      <div class="card panel">
+        <div class="panelHead"><div><h2>Admin audit log</h2><p>Search security-sensitive changes and administrative actions.</p></div></div>
+        <div class="toolbar"><input id="auditSearch" class="field" placeholder="Search action, target or detail" oninput="debounceAudit()"><select id="auditAction" class="select" onchange="loadAudit()"><option value="">All actions</option></select></div>
+        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody id="auditBody"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="drawerBackdrop" class="drawerBackdrop hidden" onclick="closeDrawer()"></div>
+<aside id="drawer" class="drawer hidden"></aside>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+var token="";
+var currentTab="overview";
+var overviewDays=30;
+var userOffset=0;
+var userTimer=null;
+var auditTimer=null;
+var pageMeta={
+  overview:["Overview","Operational health and recent backend activity."],
+  users:["Users","Search, filter and manage optional backend accounts."],
+  engagement:["Engagement","Usage trends and activity feedback aggregates."],
+  recommendations:["Recommendations","Manage the backend recommendation catalog."],
+  announcements:["Announcements","Publish controlled operational messages."],
+  controls:["System & Controls","Feature flags, service health and database diagnostics."],
+  audit:["Audit Log","Trace administrative and security-sensitive changes."]
+};
+function esc(v){return String(v===null||v===undefined?"":v).replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]})}
+function fmt(n){return Number(n||0).toLocaleString()}
+function pct(v){return v===null||v===undefined?"—":Math.round(v*100)+"%"}
+function shortDate(v){if(!v)return "—";return String(v).slice(0,10)}
+function bytes(n){if(n<1024)return n+" B";if(n<1048576)return (n/1024).toFixed(1)+" KB";return (n/1048576).toFixed(1)+" MB"}
+async function api(path,opts){
+  opts=opts||{};var headers={Accept:"application/json"};
+  if(opts.body)headers["Content-Type"]="application/json";
+  if(token)headers.Authorization="Bearer "+token;
+  var res=await fetch(path,Object.assign({},opts,{headers:headers}));
+  var type=res.headers.get("content-type")||"";
+  if(!res.ok){var err=type.indexOf("json")>=0?await res.json():{error:await res.text()};throw new Error(err.error||("HTTP "+res.status))}
+  return type.indexOf("json")>=0?await res.json():res;
+}
+function toast(message){var el=document.getElementById("toast");el.textContent=message;el.classList.remove("hidden");setTimeout(function(){el.classList.add("hidden")},2200)}
+async function login(){
+  var status=document.getElementById("loginStatus");status.textContent="Signing in…";
+  try{var data=await api("/admin/login",{method:"POST",body:JSON.stringify({password:document.getElementById("password").value})});token=data.token;document.getElementById("loginPage").classList.add("hidden");document.getElementById("console").classList.remove("hidden");status.textContent="";await loadOverview()}
+  catch(e){status.textContent=e.message}
+}
+function logout(){token="";document.getElementById("console").classList.add("hidden");document.getElementById("loginPage").classList.remove("hidden");document.getElementById("password").value=""}
+function showTab(tab,btn){
+  currentTab=tab;document.querySelectorAll("main section").forEach(function(x){x.classList.add("hidden")});document.getElementById("tab-"+tab).classList.remove("hidden");
+  document.querySelectorAll(".nav button").forEach(function(x){x.classList.remove("active")});if(btn)btn.classList.add("active");
+  document.getElementById("pageName").textContent=pageMeta[tab][0];document.getElementById("pageDesc").textContent=pageMeta[tab][1];
+  document.getElementById("sidebar").classList.remove("open");refreshCurrent();
+}
+function refreshCurrent(){if(currentTab==="overview")return loadOverview();if(currentTab==="users")return loadUsers();if(currentTab==="engagement")return loadEngagement();if(currentTab==="recommendations")return loadRecommendations();if(currentTab==="announcements")return loadAnnouncements();if(currentTab==="controls")return loadControls();if(currentTab==="audit")return loadAudit()}
+function kpi(label,value,sub){return '<div class="card kpi"><div class="kpiLabel">'+esc(label)+'</div><div class="kpiValue">'+esc(value)+'</div><div class="kpiSub">'+esc(sub||"")+'</div></div>'}
+function lineChart(series,keys){
+  if(!series.length)return '<div class="empty">No activity in this range.</div>';
+  var w=760,h=205,pad=18;var max=1;
+  series.forEach(function(d){keys.forEach(function(k){max=Math.max(max,Number(d[k.key]||0))})});
+  var x=function(i){return pad+(w-pad*2)*(i/Math.max(1,series.length-1))};
+  var y=function(v){return h-pad-(h-pad*2)*(Number(v||0)/max)};
+  var colors=["#2d776e","#d38d5b","#7890c5","#9c78b7"];
+  var grid="";for(var g=0;g<4;g++){var gy=pad+(h-pad*2)*g/3;grid+='<line x1="'+pad+'" y1="'+gy+'" x2="'+(w-pad)+'" y2="'+gy+'" stroke="#edf1f0" stroke-width="1"/>'}
+  var lines=keys.map(function(k,idx){var pts=series.map(function(d,i){return x(i)+","+y(d[k.key])}).join(" ");return '<polyline fill="none" stroke="'+colors[idx%colors.length]+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="'+pts+'"/>'}).join("");
+  var labels="";var step=Math.max(1,Math.ceil(series.length/6));for(var i=0;i<series.length;i+=step){labels+='<text class="chartLabel" x="'+x(i)+'" y="'+(h+7)+'" text-anchor="middle">'+esc(series[i].day.slice(5))+'</text>'}
+  return '<svg viewBox="0 0 '+w+' '+(h+14)+'" role="img" aria-label="Activity trend">'+grid+lines+labels+'</svg>';
+}
+function bars(items,labelKey,valueKey){
+  if(!items.length)return '<div class="empty">No usage data yet.</div>';var max=Math.max.apply(null,items.map(function(x){return Number(x[valueKey]||0)}).concat([1]));
+  return items.slice(0,8).map(function(x){var v=Number(x[valueKey]||0);return '<div class="barRow"><div><b>'+esc(x[labelKey])+'</b></div><div class="barTrack"><div class="barFill" style="width:'+Math.round(v/max*100)+'%"></div></div><div class="muted">'+fmt(v)+'</div></div>'}).join("");
+}
+async function loadOverview(){
+  try{
+    var data=await Promise.all([api("/admin/api/summary"),api("/admin/api/analytics?days="+overviewDays),api("/admin/api/activity-usage?days=30")]);
+    var s=data[0],a=data[1],u=data[2];
+    document.getElementById("kpis").innerHTML=[
+      kpi("Total users",fmt(s.users),fmt(s.new_users_30d)+" new in 30d"),
+      kpi("Active users · 7d",fmt(s.active_users_7d),fmt(s.active_users_30d)+" active in 30d"),
+      kpi("Mood logs · 30d",fmt(s.mood_logs_30d),fmt(s.mood_logs)+" all-time backend logs"),
+      kpi("Activities · 30d",fmt(s.activity_logs_30d),pct(s.helpful_rate)+" marked helpful overall")
+    ].join("");
+    document.getElementById("trendChart").innerHTML=lineChart(a.series,[{key:"mood_logs"},{key:"activities"},{key:"active_users"}]);
+    document.getElementById("usageBars").innerHTML=bars(u.activities,"activity_id","attempts");
+    document.getElementById("pulse").innerHTML='<div><b>'+fmt(s.new_users_30d)+'</b><span>new accounts · 30d</span></div><div><b>'+pct(s.helpful_rate)+'</b><span>helpful ratings</span></div><div><b>'+fmt(s.disabled_users)+'</b><span>disabled accounts</span></div>';
+  }catch(e){toast(e.message)}
+}
+function setOverviewRange(days,btn){overviewDays=days;document.querySelectorAll("#overviewRange button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");loadOverview()}
+function statusBadge(s){return '<span class="badge '+esc(s)+'">'+esc(s)+'</span>'}
+function debounceUsers(){clearTimeout(userTimer);userTimer=setTimeout(function(){userOffset=0;loadUsers()},250)}
+async function loadUsers(){
+  try{
+    var q=encodeURIComponent(document.getElementById("userSearch").value||"");var status=document.getElementById("userStatus").value;var sort=document.getElementById("userSort").value;
+    var d=await api("/admin/api/users?limit=25&offset="+userOffset+"&q="+q+"&status="+status+"&sort="+sort);
+    document.getElementById("usersBody").innerHTML=d.users.length?d.users.map(function(u){return '<tr><td><button class="tiny mono" onclick="openUser(\''+esc(u.id)+'\')">'+esc(u.id.slice(0,12))+'…</button></td><td>'+statusBadge(u.status)+'</td><td>'+shortDate(u.created_at)+'</td><td>'+shortDate(u.last_seen)+'</td><td>'+fmt(u.mood_logs)+'</td><td>'+fmt(u.activity_logs)+'</td><td>'+fmt(u.activity_minutes)+'</td><td><div class="actions"><button class="tiny" onclick="setDisabled(\''+esc(u.id)+'\','+(!u.disabled)+')">'+(u.disabled?"Enable":"Disable")+'</button><button class="tiny danger" onclick="removeUser(\''+esc(u.id)+'\')">Delete</button></div></td></tr>'}).join(""):'<tr><td colspan="8" class="empty">No users match these filters.</td></tr>';
+    var prev=userOffset>0;var next=userOffset+25<d.total;document.getElementById("userPager").innerHTML='<span class="muted">'+fmt(d.total)+' total · showing '+(d.total?userOffset+1:0)+'–'+Math.min(userOffset+25,d.total)+'</span><div class="actions"><button class="tiny" '+(prev?"":"disabled")+' onclick="pageUsers(-25)">Previous</button><button class="tiny" '+(next?"":"disabled")+' onclick="pageUsers(25)">Next</button></div>';
+  }catch(e){toast(e.message)}
+}
+function pageUsers(delta){userOffset=Math.max(0,userOffset+delta);loadUsers()}
+async function openUser(id){
+  try{var u=await api("/admin/api/users/"+encodeURIComponent(id)+"/summary");var helpful=pct(u.helpful_rate);document.getElementById("drawer").innerHTML='<div class="drawerHead"><div><div class="muted">BACKEND USER METADATA</div><h2 class="mono">'+esc(id.slice(0,16))+'…</h2></div><button class="tiny" onclick="closeDrawer()">Close</button></div><p class="muted" style="font-size:11px;line-height:1.6">'+esc(u.privacy)+'</p><div class="drawerGrid"><div class="drawerStat"><b>'+fmt(u.mood_7d)+'</b><span>Mood logs · 7d</span></div><div class="drawerStat"><b>'+fmt(u.mood_30d)+'</b><span>Mood logs · 30d</span></div><div class="drawerStat"><b>'+fmt(u.activity_30d)+'</b><span>Activities · 30d</span></div><div class="drawerStat"><b>'+helpful+'</b><span>Helpful ratings</span></div><div class="drawerStat"><b>'+fmt(u.activity_minutes)+'</b><span>Total activity minutes</span></div><div class="drawerStat"><b>'+(u.disabled?"Disabled":"Active")+'</b><span>Account state</span></div></div><div style="margin-top:18px"><p class="muted">Created: '+esc(u.created_at)+'</p><p class="muted">Last mood log: '+shortDate(u.last_mood_day)+'</p><p class="muted">Last activity: '+shortDate(u.last_activity_day)+'</p></div><div class="actions" style="margin-top:18px"><button class="btn secondary" onclick="setDisabled(\''+esc(id)+'\','+(!u.disabled)+');closeDrawer()">'+(u.disabled?"Enable account":"Disable account")+'</button><button class="btn danger" onclick="removeUser(\''+esc(id)+'\');closeDrawer()">Delete backend account</button></div>';document.getElementById("drawerBackdrop").classList.remove("hidden");document.getElementById("drawer").classList.remove("hidden")}catch(e){toast(e.message)}
+}
+function closeDrawer(){document.getElementById("drawerBackdrop").classList.add("hidden");document.getElementById("drawer").classList.add("hidden")}
+async function setDisabled(id,disabled){if(!confirm((disabled?"Disable":"Enable")+" this backend account?"))return;try{await api("/admin/api/users/"+encodeURIComponent(id)+"/disabled",{method:"POST",body:JSON.stringify({disabled:disabled})});toast("Account updated");loadUsers();if(currentTab==="overview")loadOverview()}catch(e){toast(e.message)}}
+async function removeUser(id){if(!confirm("Permanently delete this backend account and all of its server records? This cannot be undone."))return;try{await api("/admin/api/users/"+encodeURIComponent(id),{method:"DELETE"});toast("Backend account deleted");loadUsers()}catch(e){toast(e.message)}}
+async function exportUsers(){try{var res=await api("/admin/api/export/users.csv");var blob=await res.blob();var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mood-insight-users-metadata.csv";a.click();URL.revokeObjectURL(a.href);toast("Metadata export prepared")}catch(e){toast(e.message)}}
+async function loadEngagement(){
+  try{var days=document.getElementById("engagementDays").value;var data=await Promise.all([api("/admin/api/analytics?days="+days),api("/admin/api/activity-usage?days="+days)]);document.getElementById("engagementChart").innerHTML=lineChart(data[0].series,[{key:"mood_logs"},{key:"activities"},{key:"active_users"},{key:"registrations"}]);var usage=data[1].activities;document.getElementById("engagementUsage").innerHTML=usage.length?usage.slice(0,10).map(function(x){return '<div class="barRow"><div><b>'+esc(x.activity_id)+'</b><div class="muted">'+fmt(x.users)+' users · '+fmt(x.minutes)+' min · '+pct(x.helpful_rate)+' helpful</div></div><div class="barTrack"><div class="barFill" style="width:'+Math.min(100,x.attempts/Math.max.apply(null,usage.map(function(i){return i.attempts}).concat([1]))*100)+'%"></div></div><div>'+fmt(x.attempts)+'</div></div>'}).join(""):'<div class="empty">No activity feedback yet.</div>'}catch(e){toast(e.message)}
+}
+async function loadRecommendations(){
+  try{var d=await api("/admin/api/activities");document.getElementById("recommendationRows").innerHTML=d.activities.map(function(a){return '<div class="reco"><input class="field" id="title-'+a.id+'" value="'+esc(a.title)+'"><input class="field" id="minutes-'+a.id+'" type="number" min="1" max="120" value="'+a.minutes+'"><select class="select" id="difficulty-'+a.id+'"><option '+(a.difficulty==="Easy"?"selected":"")+'>Easy</option><option '+(a.difficulty==="Moderate"?"selected":"")+'>Moderate</option></select><input class="field" id="priority-'+a.id+'" type="number" min="-10" max="10" value="'+a.priority+'"><button class="toggle '+(a.enabled?"on":"")+'" id="enabled-'+a.id+'" data-on="'+(a.enabled?"1":"0")+'" onclick="flipActivity(\''+a.id+'\')"></button><button class="tiny" onclick="saveActivity(\''+a.id+'\')">Save</button></div>'}).join("")}catch(e){toast(e.message)}
+}
+function flipActivity(id){var b=document.getElementById("enabled-"+id);var on=b.dataset.on==="1";b.dataset.on=on?"0":"1";b.classList.toggle("on",!on)}
+async function saveActivity(id){try{var payload={title:document.getElementById("title-"+id).value,minutes:Number(document.getElementById("minutes-"+id).value),difficulty:document.getElementById("difficulty-"+id).value,priority:Number(document.getElementById("priority-"+id).value),enabled:document.getElementById("enabled-"+id).dataset.on==="1"};await api("/admin/api/activities/"+encodeURIComponent(id),{method:"PUT",body:JSON.stringify(payload)});toast("Recommendation saved");loadRecommendations()}catch(e){toast(e.message)}}
+async function loadAnnouncements(){try{var d=await api("/admin/api/announcements");document.getElementById("announcementsList").innerHTML=d.announcements.length?d.announcements.map(function(a){var expired=a.expires_at&&a.expires_at<new Date().toISOString().slice(0,10);return '<div class="switchRow"><div class="switchMeta"><div style="display:flex;gap:7px;align-items:center"><b>'+esc(a.title)+'</b><span class="badge '+esc(a.level)+'">'+esc(a.level)+'</span>'+(expired?'<span class="badge dormant">expired</span>':'')+'</div><p>'+esc(a.body)+'</p><p>Created '+shortDate(a.created_at)+(a.expires_at?' · expires '+esc(a.expires_at):' · no expiry')+'</p></div><div class="actions"><button class="tiny" onclick="toggleAnnouncement(\''+a.id+'\','+(!a.active)+')">'+(a.active?"Pause":"Activate")+'</button><button class="tiny danger" onclick="deleteAnnouncement(\''+a.id+'\')">Delete</button></div></div>'}).join(""):'<div class="empty">No announcements yet.</div>'}catch(e){toast(e.message)}}
+async function createAnnouncement(){try{var payload={title:document.getElementById("annTitle").value,body:document.getElementById("annBody").value,level:document.getElementById("annLevel").value,expires_at:document.getElementById("annExpiry").value||null};await api("/admin/api/announcements",{method:"POST",body:JSON.stringify(payload)});document.getElementById("annTitle").value="";document.getElementById("annBody").value="";document.getElementById("annExpiry").value="";toast("Announcement published");loadAnnouncements()}catch(e){toast(e.message)}}
+async function toggleAnnouncement(id,active){try{await api("/admin/api/announcements/"+encodeURIComponent(id)+"/active",{method:"POST",body:JSON.stringify({active:active})});toast("Announcement updated");loadAnnouncements()}catch(e){toast(e.message)}}
+async function deleteAnnouncement(id){if(!confirm("Delete this announcement from the backend history?"))return;try{await api("/admin/api/announcements/"+encodeURIComponent(id),{method:"DELETE"});toast("Announcement deleted");loadAnnouncements()}catch(e){toast(e.message)}}
+async function loadControls(){try{var data=await Promise.all([api("/admin/api/flags"),api("/admin/api/system")]);var flags=data[0].flags,sys=data[1];document.getElementById("flags").innerHTML=flags.map(function(f){return '<div class="switchRow"><div class="switchMeta"><b>'+esc(f.category)+' · '+esc(f.key)+'</b><p>'+esc(f.description)+' · updated '+shortDate(f.updated_at)+'</p></div><button class="toggle '+(f.value?"on":"")+'" onclick="setFlag(\''+f.key+'\','+(!f.value)+')"></button></div>'}).join("");var diag=[["Integrity",sys.database_integrity],["DB size",bytes(sys.database_bytes)],["Retention",sys.retention_days+" days"],["Admin TTL",Math.round(sys.admin_token_ttl_seconds/60)+" min"],["Max request",bytes(sys.max_request_bytes)],["SQLite",sys.sqlite_version]];document.getElementById("systemGrid").innerHTML=diag.map(function(x){return '<div class="sys"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join("");var counts=Object.keys(sys.table_counts).map(function(k){return {name:k,value:sys.table_counts[k]}});document.getElementById("tableCounts").innerHTML=bars(counts,"name","value")}catch(e){toast(e.message)}}
+async function setFlag(key,value){try{await api("/admin/api/flags/"+encodeURIComponent(key),{method:"PUT",body:JSON.stringify({value:value})});toast("Feature flag updated");loadControls()}catch(e){toast(e.message)}}
+function debounceAudit(){clearTimeout(auditTimer);auditTimer=setTimeout(loadAudit,250)}
+async function loadAudit(){try{var q=encodeURIComponent(document.getElementById("auditSearch").value||"");var action=encodeURIComponent(document.getElementById("auditAction").value||"");var d=await api("/admin/api/audit?limit=150&q="+q+"&action="+action);document.getElementById("auditBody").innerHTML=d.events.length?d.events.map(function(e){return '<tr><td>'+esc(e.created_at)+'</td><td><span class="badge">'+esc(e.action)+'</span></td><td class="mono">'+esc(e.target||"—")+'</td><td>'+esc(e.detail||"")+'</td></tr>'}).join(""):'<tr><td colspan="4" class="empty">No audit events match.</td></tr>';var sel=document.getElementById("auditAction");var current=sel.value;sel.innerHTML='<option value="">All actions</option>'+d.actions.map(function(a){return '<option value="'+esc(a)+'" '+(a===current?"selected":"")+'>'+esc(a)+'</option>'}).join("")}catch(e){toast(e.message)}}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&!document.getElementById("loginPage").classList.contains("hidden"))login();if(e.key==="Escape")closeDrawer()});
+</script>
+</body>
+</html>
