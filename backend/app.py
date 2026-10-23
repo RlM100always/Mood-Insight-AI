@@ -12,6 +12,7 @@ from functools import wraps
 import json
 import math
 import os
+import re
 from pathlib import Path
 import secrets
 import sqlite3
@@ -463,12 +464,15 @@ def create_app(config: dict | None = None) -> Flask:
             activity=str(value["activity_id"])
             minutes=int(value.get("duration_minutes",0))
             day=date.fromisoformat(str(value.get("day",date.today().isoformat())))
-            if not (activity.isascii() and activity.isalpha() and 1<=len(activity)<=30 and
+            if not (re.fullmatch(r"[a-z][a-z0-9_]{1,29}",activity) and
                     0<=minutes<=120 and day<=date.today()):raise ValueError()
         except (ValueError,KeyError,TypeError):
-            return jsonify(error="activity_id letters, duration 0–120 and valid day required"),400
+            return jsonify(error="valid activity_id, duration 0–120 and valid day required"),400
         activity_id=secrets.token_hex(16)
         with connect() as db:
+            allowed=db.execute("SELECT 1 FROM activity_catalog WHERE id=? AND enabled=1",(activity,)).fetchone()
+            if allowed is None:
+                return jsonify(error="Activity is unavailable"),400
             trim_records(db)
             db.execute("INSERT INTO activity_logs VALUES (?,?,?,?,?,?,?)",
                        (activity_id,g.user_id,str(day),activity,minutes,None,datetime.now(timezone.utc).isoformat()))
