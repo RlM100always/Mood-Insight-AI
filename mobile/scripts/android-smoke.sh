@@ -192,6 +192,34 @@ enter_backup_passphrase(){
   sleep 1
 }
 
+return_from_share_sheet(){
+  local focus
+  for attempt in $(seq 1 8); do
+    focus=$(adb shell dumpsys window windows 2>/dev/null | grep -m1 'mCurrentFocus' || true)
+    echo "Share-sheet foreground check $attempt: $focus" >> "$DIAG"
+    if echo "$focus" | grep -Fq "$PACKAGE"; then
+      return 0
+    fi
+    # AOSP ChooserActivity can behave as a bottom sheet: the first back press may
+    # collapse it rather than finish it, so keep backing out until our task owns focus.
+    adb shell input keyevent 4 || true
+    sleep 1
+  done
+  # If the system chooser is still in front, CLEAR_TOP the existing singleTask
+  # MainActivity so chooser activities above it are removed without wiping app data.
+  adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER     -f 0x14000000 -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1 || true
+  for attempt in $(seq 1 10); do
+    focus=$(adb shell dumpsys window windows 2>/dev/null | grep -m1 'mCurrentFocus' || true)
+    echo "App foreground recovery $attempt: $focus" >> "$DIAG"
+    if echo "$focus" | grep -Fq "$PACKAGE"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Android share sheet did not return focus to the app." >&2
+  return 1
+}
+
 open_download_fixture(){
   local filename="$1"
   find_and_tap "Choose backup file to restore"
@@ -339,12 +367,10 @@ adb shell input text "$BACKUP_PASSPHRASE"
 adb shell input keyevent 4 || true
 find_and_tap "Export encrypted backup"
 sleep 4
-# expo-sharing uses an Android system activity. On the AOSP CI image, cancelling
-# that activity can leave Launcher in front even though the RN process is alive.
-# Bring the existing task back explicitly, then assert the app's post-share status.
-adb shell input keyevent 4 || true
-sleep 2
-adb shell am start -W -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1
+# expo-sharing opens Android's system ChooserActivity. Wait until that system UI
+# is genuinely dismissed before making app assertions; one BACK is not enough on
+# all emulator images because the chooser may first collapse its bottom sheet.
+return_from_share_sheet
 sleep 3
 capture || true
 if ! grep -Fq 'Your data. Your choice.' window.xml; then
