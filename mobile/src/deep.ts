@@ -1,6 +1,6 @@
 import type {Entry, Session, Activity} from './types';
-import {CONTEXT_TAGS} from './context';
-export {CONTEXT_TAGS} from './context';
+import {CONTEXT_TAGS} from './context.ts';
+export {CONTEXT_TAGS} from './context.ts';
 
 export type Focus = 'balance'|'calm'|'sleep'|'energy'|'connection';
 export type Situation = 'general'|'overthinking'|'overwhelmed'|'low_motivation'|'lonely'|'sleep'|'stress'|'conflict'|'money';
