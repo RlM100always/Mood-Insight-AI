@@ -631,35 +631,34 @@ def register_admin_routes(
 
     def validate_activity_payload(value, activity_id: str | None = None):
         if not isinstance(value, dict):
-            raise ValueError("Expected JSON object")
+            return None, "Expected JSON object"
         title=value.get("title");minutes=value.get("minutes");difficulty=value.get("difficulty")
         enabled=value.get("enabled");priority=value.get("priority");category=value.get("category")
         rule_type=value.get("rule_type");threshold=value.get("threshold");reason=value.get("reason")
         if activity_id is not None and not _ACTIVITY_ID_RE.fullmatch(activity_id):
-            raise ValueError("Invalid activity id")
-        if not isinstance(title,str) or not 1<=len(title.strip())<=100: raise ValueError("Title must be 1–100 characters")
-        if isinstance(minutes,bool) or not isinstance(minutes,int) or not 1<=minutes<=120: raise ValueError("Minutes must be 1–120")
-        if difficulty not in {"Easy","Moderate"}: raise ValueError("Difficulty must be Easy or Moderate")
-        if type(enabled) is not bool: raise ValueError("enabled must be boolean")
-        if isinstance(priority,bool) or not isinstance(priority,int) or not -10<=priority<=10: raise ValueError("Priority must be -10 to 10")
-        if category not in CATEGORIES: raise ValueError("Unknown category")
-        if rule_type not in RULE_TYPES: raise ValueError("Unknown rule type")
-        if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not -100<=float(threshold)<=100: raise ValueError("Threshold must be numeric")
-        if not isinstance(reason,str) or not 1<=len(reason.strip())<=300: raise ValueError("Reason must be 1–300 characters")
+            return None, "Invalid activity id"
+        if not isinstance(title,str) or not 1<=len(title.strip())<=100: return None, "Title must be 1–100 characters"
+        if isinstance(minutes,bool) or not isinstance(minutes,int) or not 1<=minutes<=120: return None, "Minutes must be 1–120"
+        if difficulty not in {"Easy","Moderate"}: return None, "Difficulty must be Easy or Moderate"
+        if type(enabled) is not bool: return None, "enabled must be boolean"
+        if isinstance(priority,bool) or not isinstance(priority,int) or not -10<=priority<=10: return None, "Priority must be -10 to 10"
+        if category not in CATEGORIES: return None, "Unknown category"
+        if rule_type not in RULE_TYPES: return None, "Unknown rule type"
+        if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not -100<=float(threshold)<=100: return None, "Threshold must be numeric"
+        if not isinstance(reason,str) or not 1<=len(reason.strip())<=300: return None, "Reason must be 1–300 characters"
         return dict(title=title.strip(),minutes=minutes,difficulty=difficulty,enabled=enabled,priority=priority,
-                    category=category,rule_type=rule_type,threshold=float(threshold),reason=reason.strip())
+                    category=category,rule_type=rule_type,threshold=float(threshold),reason=reason.strip()), None
 
     @app.post("/admin/api/activities")
     @admin_bearer
     def admin_activity_create():
         value=request.get_json(silent=True)
         activity_id=value.get("id") if isinstance(value,dict) else None
-        try:
-            if not isinstance(activity_id,str) or not _ACTIVITY_ID_RE.fullmatch(activity_id):
-                raise ValueError("Activity id must start with a letter and use lowercase letters, numbers or underscores")
-            payload=validate_activity_payload(value,activity_id)
-        except ValueError as exc:
-            return jsonify(error=str(exc)),400
+        if not isinstance(activity_id,str) or not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            return jsonify(error="Activity id must start with a letter and use lowercase letters, numbers or underscores"),400
+        payload,error=validate_activity_payload(value,activity_id)
+        if error:
+            return jsonify(error=error),400
         with connect() as db:
             try:
                 db.execute("""INSERT INTO activity_catalog
@@ -675,10 +674,9 @@ def register_admin_routes(
     @app.put("/admin/api/activities/<activity_id>")
     @admin_bearer
     def admin_activity_update(activity_id: str):
-        try:
-            payload=validate_activity_payload(request.get_json(silent=True),activity_id)
-        except ValueError as exc:
-            return jsonify(error=str(exc)),400
+        payload,error=validate_activity_payload(request.get_json(silent=True),activity_id)
+        if error:
+            return jsonify(error=error),400
         with connect() as db:
             changed=db.execute("""UPDATE activity_catalog SET title=?,minutes=?,difficulty=?,enabled=?,
                 priority=?,category=?,rule_type=?,threshold=?,reason=?,updated_at=datetime('now') WHERE id=?""",
