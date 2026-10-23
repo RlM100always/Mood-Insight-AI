@@ -109,6 +109,13 @@ def create_app(config: dict | None = None) -> Flask:
                 )
         return False
 
+    def clear_auth_rate_limit(route: str) -> None:
+        if not app.config.get("AUTH_RATE_LIMIT_ENABLED", True):
+            return
+        ip = (request.remote_addr or "unknown")[:64]
+        with connect() as db:
+            db.execute("DELETE FROM auth_rate_limits WHERE ip=? AND route=?", (ip, route))
+
     def auth_rate_limit(route: str):
         def decorate(func):
             @wraps(func)
@@ -365,6 +372,7 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify(error="Invalid login credentials"),401
         if int(row["disabled"])==1:
             return jsonify(error="This backend account is disabled"),403
+        clear_auth_rate_limit("login")
         return jsonify(token=issue(user_id),expires_in_seconds=3600)
 
     @app.get("/user")
@@ -524,6 +532,7 @@ def create_app(config: dict | None = None) -> Flask:
         admin_password=admin_password,
         admin_totp_secret=admin_totp_secret,
         auth_rate_limit=auth_rate_limit,
+        clear_auth_rate_limit=clear_auth_rate_limit,
     )
     return app
 
