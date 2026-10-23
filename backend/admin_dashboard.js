@@ -6,6 +6,7 @@ var overviewDays=30;
 var userOffset=0;
 var userTimer=null;
 var auditTimer=null;
+var lastFocused=null;
 var ruleTypes=[];
 var categories=[];
 
@@ -163,12 +164,20 @@ async function loadUsers(){
 function pageUsers(delta){userOffset=Math.max(0,userOffset+delta);loadUsers()}
 async function openUser(id){
   try{
+    lastFocused=document.activeElement;
     var u=await api("/admin/api/users/"+encodeURIComponent(id)+"/summary");
     byId("drawer").innerHTML='<div class="drawerHead"><div><div class="muted">BACKEND USER METADATA</div><h2 class="mono">'+esc(id.slice(0,16))+'…</h2></div><button class="tiny" data-action="close-drawer">Close</button></div><p class="muted bodyCopy">'+esc(u.privacy)+'</p><div class="drawerGrid"><div class="drawerStat"><b>'+fmt(u.mood_7d)+'</b><span>Mood logs · 7d</span></div><div class="drawerStat"><b>'+fmt(u.mood_30d)+'</b><span>Mood logs · 30d</span></div><div class="drawerStat"><b>'+fmt(u.activity_30d)+'</b><span>Activities · 30d</span></div><div class="drawerStat"><b>'+pct(u.helpful_rate)+'</b><span>Helpful ratings</span></div><div class="drawerStat"><b>'+fmt(u.activity_minutes)+'</b><span>Total activity minutes</span></div><div class="drawerStat"><b>'+(u.disabled?"Disabled":"Active")+'</b><span>Account state</span></div></div><div class="drawerMeta"><p>Created: '+esc(u.created_at)+'</p><p>Last mood log: '+shortDate(u.last_mood_day)+'</p><p>Last activity: '+shortDate(u.last_activity_day)+'</p></div><div class="actions drawerActions"><button class="btn secondary" data-action="toggle-user" data-id="'+esc(id)+'" data-disabled="'+(u.disabled?"0":"1")+'">'+(u.disabled?"Enable account":"Disable account")+'</button><button class="btn danger" data-action="delete-user" data-id="'+esc(id)+'">Delete backend account</button></div>';
-    byId("drawerBackdrop").classList.remove("hidden");byId("drawer").classList.remove("hidden");byId("drawer").focus();
+    byId("drawerBackdrop").classList.remove("hidden");byId("drawer").classList.remove("hidden");
+    var first=byId("drawer").querySelector("button,[href],input,select,textarea,[tabindex]:not([tabindex='-1'])");
+    (first||byId("drawer")).focus();
   }catch(e){toast(e.message)}
 }
-function closeDrawer(){byId("drawerBackdrop").classList.add("hidden");byId("drawer").classList.add("hidden")}
+function closeDrawer(){
+  if(byId("drawer").classList.contains("hidden"))return;
+  byId("drawerBackdrop").classList.add("hidden");byId("drawer").classList.add("hidden");
+  if(lastFocused&&typeof lastFocused.focus==="function")lastFocused.focus();
+  lastFocused=null;
+}
 async function setDisabled(id,disabled){
   if(!confirm((disabled?"Disable":"Enable")+" this backend account?"))return;
   try{await api("/admin/api/users/"+encodeURIComponent(id)+"/disabled",{method:"POST",body:JSON.stringify({disabled:disabled})});toast("Account updated");closeDrawer();loadUsers();if(currentTab==="overview")loadOverview()}catch(e){toast(e.message)}
@@ -328,4 +337,13 @@ byId("purgeRetentionButton").addEventListener("click",purgeRetention);
 byId("auditSearch").addEventListener("input",debounceAudit);
 byId("auditAction").addEventListener("change",loadAudit);
 byId("drawerBackdrop").addEventListener("click",closeDrawer);
-document.addEventListener("keydown",function(e){if(e.key==="Escape")closeDrawer()});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){closeDrawer();return}
+  if(e.key==="Tab"&&!byId("drawer").classList.contains("hidden")){
+    var focusable=Array.from(byId("drawer").querySelectorAll("button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])"));
+    if(!focusable.length){e.preventDefault();byId("drawer").focus();return}
+    var first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
