@@ -2,6 +2,7 @@ import secrets
 import tempfile
 from pathlib import Path
 import unittest
+from datetime import date
 
 from backend.app import create_app
 
@@ -48,7 +49,7 @@ class AdminApiTests(unittest.TestCase):
         user=self.register("Secret Profile Name")
         h={"Authorization":"Bearer "+user["token"]}
         mood=self.client.post("/log_mood",headers=h,json={
-            "day":"2026-10-23","mood":3,"stress":2,"sleep_hours":7,
+            "day":date.today().isoformat(),"mood":3,"stress":2,"sleep_hours":7,
             "exercise_min":20,"energy":3,"sleep_quality":4,"note":"SECRET JOURNAL TEXT"
         })
         self.assertEqual(mood.status_code,200,mood.json)
