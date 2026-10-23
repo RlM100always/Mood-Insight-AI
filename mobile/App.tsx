@@ -28,11 +28,11 @@ const C = {
   primary: '#325C57', teal: '#D8EDE5', peach: '#FBE6DA',
   lilac: '#EAE3F8', line: '#E6EAE8', grey: '#F0F3F2', red: '#AA4B45'
 };
-type Tab = 'Today' | 'Patterns' | 'Activities' | 'Journal' | 'Progress' | 'Privacy';
-const NAV: {label: Tab; icon: string}[] = [
-  {label: 'Today',icon: '◉'}, {label: 'Patterns',icon: '▥'},
+type Tab = 'Today' | 'Insights' | 'Activities' | 'Journal' | 'More' | 'Progress' | 'Privacy';
+const NAV: {label: Exclude<Tab,'Progress'|'Privacy'>; icon: string}[] = [
+  {label: 'Today',icon: '◉'}, {label: 'Insights',icon: '▥'},
   {label: 'Activities',icon: '✦'}, {label: 'Journal',icon: '▤'},
-  {label: 'Progress',icon: '◷'}, {label: 'Privacy',icon: '♧'}
+  {label: 'More',icon: '•••'}
 ];
 const MOODS: {mood: MoodScore; emoji: string; label: string}[] = [
   {mood: 1,emoji: '😞',label:'Very low'}, {mood: 2,emoji:'😕',label:'Low'},
@@ -309,7 +309,7 @@ export default function App() {
           </Card>
         </>:null}
 
-        {tab==='Patterns'?<>
+        {tab==='Insights'?<>
           <Heading kicker="Personal insights" title="A picture of your patterns" description="Only what your own entries can support."/>
           <Card tint={C.lilac}><Text style={s.kicker}>WHAT YOU'VE SHARED</Text>
             <Text style={s.heroSmall}>{entries.length} recorded days</Text>
@@ -354,12 +354,34 @@ export default function App() {
           <Heading kicker="Private journal" title="Your story, your words" description="Search context, notes and dates; edit or remove any entry."/>
           <JournalSearch entries={entries} onEdit={edit} onDelete={confirmRemove}/>
         </>:null}
+        {tab==='More'?<>
+          <Heading kicker="Settings & review" title="More control, less clutter" description="Progress, privacy and data tools live here so the main navigation stays focused."/>
+          <Card tint={C.teal}>
+            <Text style={s.kicker}>PROGRESS & GOALS</Text>
+            <Text style={s.h3}>Review your wellbeing journey</Text>
+            <Text style={s.copy}>See weekly goals, consistency, activity feedback and your own recorded progress without turning wellbeing into a score.</Text>
+            <Primary label="Open Progress & goals" action={()=>navigateTab('Progress')}/>
+          </Card>
+          <Card tint={C.lilac}>
+            <Text style={s.kicker}>PRIVACY & DATA</Text>
+            <Text style={s.h3}>Manage storage, backup and diagnostics</Text>
+            <Text style={s.copy}>Verify encrypted storage, export or restore a protected backup, inspect the optional backend bridge, and erase local records.</Text>
+            <Primary label="Open Privacy & data" action={()=>navigateTab('Privacy')}/>
+          </Card>
+          <Card>
+            <Text style={s.h3}>About this app</Text>
+            <Text style={s.copy}>Version {appConfig.expo.version} · local-first wellbeing support · no ad tracking or automatic cloud sync.</Text>
+            <Text style={s.footnote}>Personal insights are descriptive and experimental. They are not diagnosis, therapy, or emergency monitoring.</Text>
+          </Card>
+        </>:null}
         {tab==='Progress'?<>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={()=>navigateTab('More')} style={s.backLink}><Text style={s.backLinkText}>‹ More</Text></Pressable>
           <Heading kicker="A gentle progress space" title="Your wellbeing journey" description="Set realistic goals and reflect on your own participation."/>
           <ProgressExplorer entries={entries} sessions={sessions} preferences={preferences} onPreferences={persistPreferences}/>
         </>:null}
 
         {tab==='Privacy'?<>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={()=>navigateTab('More')} style={s.backLink}><Text style={s.backLinkText}>‹ More</Text></Pressable>
           <Heading kicker="Data control" title="Your data. Your choice." description="A simple privacy promise you can verify."/>
           <Card tint={C.teal}><Text style={s.h3}>Encrypted on your phone</Text>
             <Text style={s.copy}>Native SQLCipher SQLite encrypts entries using AES-256. Your randomly generated database key is held by platform SecureStore. No mood data is sent by default. The optional research bridge can send explicitly selected numerical check-ins only after you enable it and confirm consent; journal notes and context tags remain local.</Text>
@@ -389,13 +411,16 @@ export default function App() {
         <View style={{height:28}}/>
       </ScrollView>
     </KeyboardAvoidingView>
-    <View style={s.tabBar}>{NAV.map(n=><Pressable key={n.label}
-      accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
-      accessibilityState={{selected:tab===n.label}}
-      onPress={()=>navigateTab(n.label)} style={[s.tabButton,tab===n.label&&s.tabButtonActive]}>
-      <Text style={[s.navIcon,tab===n.label&&{color:C.primary}]}>{n.icon}</Text>
-      <Text style={[s.navText,tab===n.label&&s.navActive]}>{n.label}</Text>
-    </Pressable>)}</View>
+    <View style={s.tabBar}>{NAV.map(n=>{
+      const selected=tab===n.label||(n.label==='More'&&(tab==='Progress'||tab==='Privacy'));
+      return <Pressable key={n.label}
+        accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
+        accessibilityState={{selected}}
+        onPress={()=>navigateTab(n.label)} style={[s.tabButton,selected&&s.tabButtonActive]}>
+        <Text style={[s.navIcon,selected&&{color:C.primary}]}>{n.icon}</Text>
+        <Text style={[s.navText,selected&&s.navActive]}>{n.label}</Text>
+      </Pressable>;
+    })}</View>
   </SafeAreaView>;
 }
 
@@ -410,6 +435,8 @@ const s=StyleSheet.create({
   pillText:{color:C.primary,fontSize:9,fontWeight:'800',letterSpacing:.8},
   content:{padding:20,paddingBottom:30,gap:14},
   heading:{marginTop:5,marginBottom:4},
+  backLink:{alignSelf:'flex-start',minHeight:44,justifyContent:'center',paddingHorizontal:4,marginBottom:-4},
+  backLinkText:{fontSize:14,fontWeight:'900',color:C.primary},
   kicker:{color:C.primary,fontSize:10,fontWeight:'900',letterSpacing:1.6,marginBottom:8},
   h1:{fontSize:30,lineHeight:36,fontWeight:'900',color:C.ink,letterSpacing:-1.2,marginBottom:5},
   h2:{fontSize:20,fontWeight:'800',color:C.ink,marginTop:12,marginBottom:4},
