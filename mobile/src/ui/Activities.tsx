@@ -23,6 +23,7 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
  const ranked=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
  const items=useMemo(()=>showFavorites?ranked.filter(x=>favorites.has(x.id)):ranked,[ranked,showFavorites,favorites]);
  const outcomes=useMemo(()=>activityOutcomeInsights(sessions),[sessions]);
+ const pendingFeedback=useMemo(()=>sessions.find(item=>item.helpful===null)??null,[sessions]);
  const today=localDay();
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
  const todayEntry=entries.find(e=>e.day===today);
@@ -84,6 +85,20 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
   <Action text={busy?'Saving…':'I completed or tried this'} onPress={()=>void finish()}/>
  </View>;
  return <View style={{gap:13}}>
+  {pendingFeedback?<Panel tint={colors.warm}>
+   <Text style={st.label}>QUICK REFLECTION</Text>
+   <Text style={st.title}>How did your recent activity feel?</Text>
+   <Text style={st.sub}>{pendingFeedback.activity_id.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())} · {readableDay(pendingFeedback.day)}</Text>
+   <Text style={st.label}>MOOD AFTER ACTIVITY · OPTIONAL</Text>
+   <View style={st.row}>{([1,2,3,4,5] as MoodScore[]).map(v=>
+    <Choose key={v} text={String(v)} selected={moodAfter[pendingFeedback.id]===v}
+      onPress={()=>setMoodAfter(old=>({...old,[pendingFeedback.id]:v}))}/>)}</View>
+   <View style={st.row}>
+    <Choose text="👍 Helpful" selected={false} onPress={()=>void feedback(pendingFeedback,true)}/>
+    <Choose text="👎 Not helpful" selected={false} onPress={()=>void feedback(pendingFeedback,false)}/>
+   </View>
+   <Text style={st.sub}>Your private rating gently adjusts future local ranking. It is not a clinical effectiveness score.</Text>
+  </Panel>:null}
   <Panel tint={colors.soft}><Text style={st.label}>A PLAN BASED ON YOU</Text>
    <Text style={st.title}>Choose a focus</Text>
    <View style={st.row}>{(['balance','calm','sleep','energy','connection'] as Focus[]).map(f=>
