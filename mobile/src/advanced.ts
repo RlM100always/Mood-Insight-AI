@@ -44,7 +44,7 @@ function sd(xs:number[]):number|null{
 }
 function slopePerDay(entries:Entry[]):number|null{
   if(entries.length<3)return null;
-  const points=entries.map(e=>({x:ordinal(e.day),y:e.mood})).filter((p):p is {x:number;y:number}=>p.x!==null);
+  const points=entries.map(e=>({x:ordinal(e.day),y:e.mood})).filter((p):p is {x:number;y:Entry['mood']}=>p.x!==null);
   if(points.length<3)return null;
   const x0=points[0].x,xs=points.map(p=>p.x-x0),ys=points.map(p=>p.y);
   const mx=mean(xs),my=mean(ys);
