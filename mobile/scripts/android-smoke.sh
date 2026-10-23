@@ -52,9 +52,39 @@ if ! test -s "$apk"; then echo "APK artifact not found" >&2; exit 1; fi
 wait_for_device_ready
 test -s mobile/e2e-restore-fixture.mibak || { echo "Encrypted E2E restore fixture is missing" >&2; exit 1; }
 test -s mobile/e2e-restore-fixture-tampered.mibak || { echo "Encrypted E2E integrity fixture is missing" >&2; exit 1; }
-adb shell mkdir -p /sdcard/Download
-adb push mobile/e2e-restore-fixture.mibak /sdcard/Download/mood-insight-e2e-backup.mibak >> "$DIAG" 2>&1
-adb push mobile/e2e-restore-fixture-tampered.mibak /sdcard/Download/mood-insight-e2e-backup-tampered.mibak >> "$DIAG" 2>&1
+
+# android-emulator-runner can report sys.boot_completed before credential-encrypted
+# shared storage is ready. Do not misclassify that emulator race as an app failure.
+prepare_shared_downloads(){
+  local marker="/storage/emulated/0/Download/.mood-insight-ci-write-test"
+  for attempt in $(seq 1 30); do
+    adb shell input keyevent 82 >/dev/null 2>&1 || true
+    adb shell mkdir -p /storage/emulated/0/Download >> "$DIAG" 2>&1 || true
+    if adb shell "echo ready > '$marker'" >> "$DIAG" 2>&1; then
+      adb shell rm -f "$marker" >> "$DIAG" 2>&1 || true
+      echo "Shared Downloads storage is writable (attempt $attempt)." >> "$DIAG"
+      return 0
+    fi
+    echo "Waiting for writable shared Downloads storage ($attempt/30)" >> "$DIAG"
+    sleep 2
+  done
+  echo "Android shared Downloads storage never became writable." >&2
+  return 1
+}
+push_download_fixture(){
+  local source="$1" target="$2"
+  for attempt in 1 2 3 4 5; do
+    if adb push "$source" "$target" >> "$DIAG" 2>&1; then return 0; fi
+    echo "Retrying fixture push to shared Downloads ($attempt/5): $target" >> "$DIAG"
+    sleep 2
+  done
+  echo "Could not stage encrypted backup fixture in Android Downloads: $target" >&2
+  return 1
+}
+prepare_shared_downloads
+push_download_fixture mobile/e2e-restore-fixture.mibak /storage/emulated/0/Download/mood-insight-e2e-backup.mibak
+push_download_fixture mobile/e2e-restore-fixture-tampered.mibak /storage/emulated/0/Download/mood-insight-e2e-backup-tampered.mibak
+adb shell ls -l /storage/emulated/0/Download/mood-insight-e2e-backup*.mibak >> "$DIAG" 2>&1
 adb install -r "$apk"
 adb logcat -c || true
 adb shell input keyevent 82 || true
