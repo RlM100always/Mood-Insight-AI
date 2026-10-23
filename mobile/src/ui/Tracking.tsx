@@ -112,8 +112,8 @@ export function JournalSearch({entries,onEdit,onDelete}:{
  {e.context_tags?<Text style={st.sub}>Contexts: {e.context_tags.split(',').join(' · ')}</Text>:null}
  {e.note?<Text style={st.body}>{e.note}</Text>:null}
  <View style={[st.row,{marginTop:8}]}>
- <Pressable accessibilityRole="button" onPress={()=>onEdit(e)} style={{padding:8}}><Text style={{color:colors.main,fontWeight:'900'}}>Edit</Text></Pressable>
- <Pressable accessibilityRole="button" onPress={()=>onDelete(e)} style={{padding:8}}><Text style={{color:'#B45A54',fontWeight:'900'}}>Delete</Text></Pressable>
+ <Pressable accessibilityRole="button" accessibilityLabel={'Edit journal entry '+e.day} onPress={()=>onEdit(e)} style={{minHeight:44,paddingHorizontal:10,justifyContent:'center'}}><Text style={{color:colors.main,fontWeight:'900'}}>Edit</Text></Pressable>
+ <Pressable accessibilityRole="button" accessibilityLabel={'Delete journal entry '+e.day} onPress={()=>onDelete(e)} style={{minHeight:44,paddingHorizontal:10,justifyContent:'center'}}><Text style={{color:'#B45A54',fontWeight:'900'}}>Delete</Text></Pressable>
  </View></Panel>)}
  </View>;
 }
