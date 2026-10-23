@@ -18,6 +18,21 @@ export type ActivityOutcome = {
   id:string; attempts:number; rated:number; helpful:number; helpfulRate:number|null;
   moodSamples:number; averageMoodShift:number|null; averageMinutes:number;
 };
+export type WeekComparison = {
+  currentLogged:number;previousLogged:number;currentAverage:number|null;previousAverage:number|null;delta:number|null;
+};
+export type ContextMood = {
+  label:string;samples:number;averageMood:number;differenceFromOverall:number;highShare:number;lowShare:number;
+};
+export type RecoveryProfile = {
+  lowDays:number;nextDayPairs:number;averageNextDayChange:number|null;recoveredToThree:number;recoveryRate:number|null;
+};
+export type MoodCalendarDay = {
+  day:string;mood:number|null;completeness:number;
+};
+export type DataQualityCoach = {
+  label:string;coverage:number|null;message:string;
+};
 
 const DAY=86_400_000;
 const mean=(xs:number[])=>xs.reduce((s,x)=>s+x,0)/Math.max(1,xs.length);
@@ -131,4 +146,72 @@ export function activityOutcomeInsights(sessions:Session[]):ActivityOutcome[]{
       averageMinutes:seconds.length?mean(seconds)/60:0});
   }
   return out.sort((a,b)=>(b.rated+b.moodSamples)-(a.rated+a.moodSamples)||b.attempts-a.attempts||a.id.localeCompare(b.id));
+}
+
+function dayFromOrdinal(value:number):string{
+  return new Date(value*DAY).toISOString().slice(0,10);
+}
+export function weekComparison(entries:Entry[],now=new Date()):WeekComparison{
+  const today=ordinal(isoDay(now))!;
+  const currentStart=dayFromOrdinal(today-6),previousStart=dayFromOrdinal(today-13),previousEnd=dayFromOrdinal(today-7);
+  const current=entries.filter(e=>e.day>=currentStart&&e.day<=isoDay(now));
+  const previous=entries.filter(e=>e.day>=previousStart&&e.day<=previousEnd);
+  const currentAverage=current.length?mean(current.map(e=>e.mood)):null;
+  const previousAverage=previous.length?mean(previous.map(e=>e.mood)):null;
+  return {currentLogged:current.length,previousLogged:previous.length,currentAverage,previousAverage,
+    delta:currentAverage===null||previousAverage===null?null:currentAverage-previousAverage};
+}
+export function contextMoodRanking(entries:Entry[],days=90,now=new Date()):ContextMood[]{
+  const rows=inWindow(entries,days,now),overall=rows.length?mean(rows.map(e=>e.mood)):0;
+  const groups=new Map<string,Entry[]>();
+  for(const e of rows){
+    for(const raw of e.context_tags.split(',')){
+      const label=raw.trim();if(!label)continue;
+      const group=groups.get(label)||[];group.push(e);groups.set(label,group);
+    }
+  }
+  const out:ContextMood[]=[];
+  for(const [label,items] of groups){
+    if(items.length<3)continue;
+    const averageMood=mean(items.map(e=>e.mood));
+    out.push({label,samples:items.length,averageMood,differenceFromOverall:averageMood-overall,
+      highShare:items.filter(e=>e.mood>=4).length/items.length,lowShare:items.filter(e=>e.mood<=2).length/items.length});
+  }
+  return out.sort((a,b)=>Math.abs(b.differenceFromOverall)-Math.abs(a.differenceFromOverall)||b.samples-a.samples||a.label.localeCompare(b.label));
+}
+export function recoveryProfile(entries:Entry[],days=90,now=new Date()):RecoveryProfile{
+  const rows=inWindow(entries,days,now),byDay=new Map<number,Entry>();
+  for(const e of rows){const d=ordinal(e.day);if(d!==null)byDay.set(d,e);}
+  let lowDays=0,pairs=0,recovered=0,totalChange=0;
+  for(const e of rows){
+    if(e.mood>2)continue;
+    lowDays++;
+    const d=ordinal(e.day);if(d===null)continue;
+    const next=byDay.get(d+1);if(!next)continue;
+    pairs++;totalChange+=next.mood-e.mood;if(next.mood>=3)recovered++;
+  }
+  return {lowDays,nextDayPairs:pairs,averageNextDayChange:pairs?totalChange/pairs:null,
+    recoveredToThree:recovered,recoveryRate:pairs?recovered/pairs:null};
+}
+export function moodCalendar(entries:Entry[],days=28,now=new Date()):MoodCalendarDay[]{
+  const today=ordinal(isoDay(now))!,map=new Map(entries.map(e=>[e.day,e]));
+  const out:MoodCalendarDay[]=[];
+  for(let offset=days-1;offset>=0;offset--){
+    const day=dayFromOrdinal(today-offset),e=map.get(day);
+    const completeness=e?[e.sleep_recorded,e.exercise_recorded,e.stress_recorded,e.energy_recorded,e.sleep_quality_recorded].filter(x=>x===1).length/5:0;
+    out.push({day,mood:e?.mood??null,completeness});
+  }
+  return out;
+}
+export function dataQualityCoach(entries:Entry[],now=new Date()):DataQualityCoach{
+  const coverage=dataCoverage(entries,30,now);
+  if(coverage.logged<3)return {label:'Keep logging naturally',coverage:null,message:'A few more check-ins will make personal patterns more useful. Optional fields can always be skipped.'};
+  const fields=[
+    ['sleep',coverage.sleep],['movement',coverage.movement],['stress',coverage.stress],
+    ['energy',coverage.energy],['sleep quality',coverage.sleepQuality]
+  ] as [string,number][];
+  fields.sort((a,b)=>a[1]-b[1]);
+  const [label,value]=fields[0];
+  if(value>=.8)return {label:'Strong measurement coverage',coverage:value,message:'Your recent optional measurements are well covered. Keep answering naturally rather than trying to make the data look complete.'};
+  return {label:'Lowest recent coverage: '+label,coverage:value,message:'If it feels easy, recording '+label+' a little more often may strengthen descriptive patterns. Skipping is always allowed and values are never guessed.'};
 }

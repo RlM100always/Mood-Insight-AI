@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {activityOutcomeInsights,consistencyInsights,dataCoverage,signalAssociations,windowSummary} from '../src/advanced.ts';
+import {activityOutcomeInsights,consistencyInsights,contextMoodRanking,dataCoverage,dataQualityCoach,moodCalendar,recoveryProfile,signalAssociations,weekComparison,windowSummary} from '../src/advanced.ts';
 
 const entry=(day,mood=3,over={})=>({id:day,day,mood,sleep_hours:7,exercise_min:20,stress:3,energy:3,sleep_quality:3,
  sleep_recorded:1,exercise_recorded:1,stress_recorded:1,energy_recorded:1,sleep_quality_recorded:1,
@@ -40,4 +40,35 @@ test('activity outcomes combine helpfulness and before-after mood samples',()=>{
  const r=activityOutcomeInsights(sessions);
  const walk=r.find(x=>x.id==='walk');
  assert.equal(walk.rated,2);assert.equal(walk.helpfulRate,.5);assert.equal(walk.moodSamples,2);assert.equal(walk.averageMoodShift,1);
+});
+
+test('week comparison uses two real seven-day windows',()=>{
+ const now=new Date(2026,9,23,12);
+ const rows=[entry('2026-10-10',1),entry('2026-10-16',2),entry('2026-10-17',3),entry('2026-10-20',4),entry('2026-10-23',4)];
+ const r=weekComparison(rows,now);
+ assert.equal(r.currentLogged,3);assert.equal(r.previousLogged,2);
+ assert.equal(r.currentAverage,11/3);assert.equal(r.previousAverage,1.5);assert.ok(r.delta>2.1);
+});
+test('context ranking needs repeated tags and reports descriptive differences',()=>{
+ const rows=[
+  entry('2026-10-18',2,{context_tags:'Work'}),entry('2026-10-19',2,{context_tags:'Work,Study'}),
+  entry('2026-10-20',3,{context_tags:'Work'}),entry('2026-10-21',5,{context_tags:'Rest'}),
+  entry('2026-10-22',5,{context_tags:'Rest'}),entry('2026-10-23',4,{context_tags:'Rest'})
+ ];
+ const r=contextMoodRanking(rows,90,new Date(2026,9,23,12));
+ assert.equal(r.length,2);assert.equal(r[0].samples,3);assert.ok(r.some(x=>x.label==='Work'&&x.averageMood<3));
+});
+test('recovery profile only uses next calendar day pairs',()=>{
+ const rows=[entry('2026-10-18',2),entry('2026-10-19',4),entry('2026-10-21',1),entry('2026-10-23',5)];
+ const r=recoveryProfile(rows,90,new Date(2026,9,23,12));
+ assert.equal(r.lowDays,2);assert.equal(r.nextDayPairs,1);assert.equal(r.averageNextDayChange,2);assert.equal(r.recoveryRate,1);
+});
+test('mood calendar preserves missing days and data completeness',()=>{
+ const r=moodCalendar([entry('2026-10-23',4,{sleep_recorded:0})],3,new Date(2026,9,23,12));
+ assert.equal(r.length,3);assert.equal(r[0].mood,null);assert.equal(r[2].mood,4);assert.equal(r[2].completeness,.8);
+});
+test('data quality coach never asks to fabricate missing values',()=>{
+ const rows=[entry('2026-10-21',3,{sleep_recorded:0}),entry('2026-10-22',3,{sleep_recorded:0}),entry('2026-10-23',3,{sleep_recorded:0})];
+ const r=dataQualityCoach(rows,new Date(2026,9,23,12));
+ assert.match(r.label,/sleep/);assert.match(r.message,/Skipping is always allowed/);
 });

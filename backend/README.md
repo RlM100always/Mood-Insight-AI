@@ -25,3 +25,21 @@ Test without network requests: `python -m unittest discover -s backend/tests -v`
 This backend's AES-GCM payload encryption differs from **SQLCipher**, which runs in the mobile app. Do not call this backend SQLite database “SQLCipher” unless deliberately configured with that library. For a public deployment use HTTPS, deployment security review, a reviewed authentication and distributed rate-limiting design, monitoring, backup/restore policy and a proper threat model.
 
 The attached architecture image specifies individual Random Forest/Decision Tree/Logistic Regression accuracies. **Those accuracy figures are unverified** and are never reported as measured by this API. The only bundled on-device ML model currently is an experimental logistic regression trained on synthetic examples.
+
+
+## Admin dashboard
+
+The optional Flask backend now has a separate privacy-preserving admin surface at `/admin`. Admin access is disabled unless `MOOD_ADMIN_PASSWORD` is configured with at least 16 characters.
+
+Required server environment values:
+
+```bash
+export MOOD_API_AES_KEY="<64 hex characters>"
+export MOOD_API_SECRET="<32+ character random secret>"
+export MOOD_ADMIN_PASSWORD="<16+ character separate admin password>"
+python -m backend.app
+```
+
+The admin dashboard supports operational summary counts, backend account enable/disable and deletion, feature flags, public server announcements, and an admin audit trail. It intentionally does **not** expose decrypted profile data, raw mood payloads, journal text, or context tags. Normal user bearer tokens cannot access admin APIs. Admin tokens expire and are kept only in the browser page memory.
+
+Feature flags currently control new backend registration, backend recommendations, and the Australian aggregate research endpoint. The mobile app remains local-first; admin controls affect only the optional self-hosted backend, not the encrypted on-device SQLCipher journal unless the user explicitly connects to that backend.
