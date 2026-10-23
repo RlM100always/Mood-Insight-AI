@@ -21,14 +21,14 @@ The native Patterns screen now includes an offline explorer for **real ABS 2020�
 - SQLCipher encrypted on-device SQLite + OS SecureStore
 - Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
 - **Deeper personal analytics:** 7/30/90-day summaries, logging coverage, mood variability and trend, sleep/movement/stress/energy/sleep-quality correlations with sample thresholds, streak/consistency views, and activity outcome summaries
-- **Richer local learning:** activity ranking can use both helpfulness ratings and optional before→after mood pairs; journal search supports mood/context/note filters; all missing optional measurements stay missing rather than being guessed
+- **Richer local learning:** activity ranking can use helpfulness ratings, optional before→after mood pairs and encrypted favourite activities; journal search supports text, range, mood, custom-context, notes-only and sort controls; custom context labels are validated locally; all missing optional measurements stay missing rather than being guessed
 - **Expanded insight dashboard:** personal insight-readiness, 7/30-day KPI tiles, five-level mood distribution, rolling four-week view, week-vs-week comparison, 28-day mood calendar, weekday profile, context snapshots, signal-strength bars, next-day low-mood recovery patterns and a non-pressuring data-quality coach
-- **Full optional admin operations console:** responsive Overview/Users/Engagement/Recommendations/Announcements/System/Audit sections; operational charts, searchable user metadata, drill-downs, CSV export, configurable backend recommendation catalog, live feature controls, expiring announcements, system diagnostics and audit history. Raw encrypted journal/profile content is intentionally not exposed
+- **Full optional admin operations console:** responsive Overview/Users/Engagement/Recommendations/Announcements/System/Security/Audit sections; operational charts, activation funnel/cohorts, searchable user metadata, drill-downs, CSV export, safe declarative recommendation-rule CMS, live feature controls, retention controls, expiring announcements, revocable sessions, optional TOTP MFA, system diagnostics and audit history. Raw encrypted journal/profile content is intentionally not exposed
 - **Personal learning experiment:** the Patterns screen no longer shows synthetic-model predictions. Its small on-device experiment learns only from the user's own consecutive-day check-ins and suppresses estimates unless a chronological holdout beats a simple baseline. It is not a clinical prediction model and is not Australian-population-trained.
 - Exporter to fit the same ML runtime from authentic consented research data, plus Random Forest/Decision Tree/Logistic Regression/MLP research comparison scripts
 
 ### Build / test
-See [mobile/README.md](mobile/README.md). The Android APK and iOS simulator workflows are under [.github/workflows](.github/workflows). Build/test success must be confirmed in GitHub Actions; emulator/simulator are not physical-device verification.
+See [mobile/README.md](mobile/README.md) and [INDUSTRY_READINESS.md](INDUSTRY_READINESS.md). The Android APK and iOS simulator workflows are under [.github/workflows](.github/workflows). Build/test success must be confirmed in GitHub Actions; emulator/simulator are not physical-device verification.
 
 ### Release and safety gates
 
