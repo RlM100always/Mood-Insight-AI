@@ -17,6 +17,19 @@ test('negative and positive personal feedback affect ranking',()=>{
  assert.equal(sorted[0].id,'grounding');
  assert.equal(sorted[0].trials,6);
 });
+test('before-after mood feedback contributes cautiously to activity ranking',()=>{
+ const sessions=[
+  {id:'b1',activity_id:'breathing',day:'2026-10-20',created_at:1,helpful:1,duration_seconds:300,mood_before:4,mood_after:3},
+  {id:'b2',activity_id:'breathing',day:'2026-10-21',created_at:2,helpful:1,duration_seconds:300,mood_before:4,mood_after:3},
+  {id:'g1',activity_id:'grounding',day:'2026-10-20',created_at:3,helpful:1,duration_seconds:300,mood_before:2,mood_after:4},
+  {id:'g2',activity_id:'grounding',day:'2026-10-21',created_at:4,helpful:1,duration_seconds:300,mood_before:2,mood_after:4}
+ ];
+ const p={...DEFAULT_PREFERENCES,focus:'calm',max_minutes:10};
+ const sorted=recommendationPlan([day('2026-10-22')],sessions,p,'general',true,new Date(2026,9,23,12));
+ assert.equal(sorted[0].id,'grounding');assert.equal(sorted[0].moodSamples,2);assert.ok(sorted[0].averageMoodShift>0);
+ assert.match(sorted[0].evidence,/do not prove/);
+});
+
 test('weekly stats distinguish missing baseline and do not create phantom gains',()=>{
  const now=new Date(2026,9,21,12);
  const one=review([day('2026-10-20',2)],[],now);
