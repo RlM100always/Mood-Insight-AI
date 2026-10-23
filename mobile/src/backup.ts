@@ -53,6 +53,7 @@ export function validateBackupPayload(value:unknown):BackupPayload{
   sessionIds.add(s.id);
  }
  const pref=p.preferences as Preferences;
+ if(pref&&typeof pref.favorite_activity_ids==='undefined')pref.favorite_activity_ids='';
  if(!pref||!['balance','calm','sleep','energy','connection'].includes(pref.focus)||![5,10,15,20,30].includes(pref.max_minutes)||
   !Number.isInteger(pref.weekly_checkins)||pref.weekly_checkins<1||pref.weekly_checkins>7||!Number.isInteger(pref.weekly_activities)||pref.weekly_activities<1||pref.weekly_activities>14||
   typeof pref.favorite_activity_ids!=='string'||pref.favorite_activity_ids.length>1000||
