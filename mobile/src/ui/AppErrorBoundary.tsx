@@ -1,8 +1,9 @@
 import React from 'react';
 import {Pressable,SafeAreaView,StyleSheet,Text,View} from 'react-native';
 
+type Props={children?:React.ReactNode};
 type State={failed:boolean};
-export class AppErrorBoundary extends React.Component<React.PropsWithChildren,State>{
+export class AppErrorBoundary extends React.Component<Props,State>{
   state:State={failed:false};
   static getDerivedStateFromError():State{return {failed:true};}
   componentDidCatch(_error:unknown):void{
