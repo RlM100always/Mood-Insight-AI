@@ -46,7 +46,7 @@ export function ResearchApiBridge({entries}:Props){
   const [busy,setBusy]=useState(false);
   const [sharing,setSharing]=useState(false);
   const [remote,setRemote]=useState<RemoteHistory|null>(null);
-  const [announcements,setAnnouncements]=useState<{id:string;title:string;body:string;created_at:string}[]>([]);
+  const [announcements,setAnnouncements]=useState<{id:string;title:string;body:string;created_at:string;level?:'info'|'maintenance'|'important';expires_at?:string|null}[]>([]);
   const session=useRef<string>('');
   const action=async(work:()=>Promise<void>)=>{
     if(busy)return;setBusy(true);
@@ -146,8 +146,13 @@ export function ResearchApiBridge({entries}:Props){
         <Text selectable style={st.sub}>{status}</Text>
         {announcements.length?<View style={{gap:8}}>
           <Text style={st.label}>SERVER ANNOUNCEMENTS</Text>
-          {announcements.slice(0,3).map(item=><View key={item.id} style={{backgroundColor:colors.soft,padding:10,borderRadius:10}}>
-            <Text style={st.title}>{item.title}</Text><Text style={st.sub}>{item.body}</Text>
+          {announcements.slice(0,3).map(item=><View key={item.id} style={{backgroundColor:item.level==='important'?'#FDEBED':item.level==='maintenance'?colors.warm:colors.soft,padding:12,borderRadius:12,gap:4,borderWidth:1,borderColor:colors.line}}>
+            <View style={{flexDirection:'row',justifyContent:'space-between',gap:8,alignItems:'center'}}>
+              <Text style={[st.title,{flex:1}]}>{item.title}</Text>
+              <Text style={st.label}>{(item.level||'info').toUpperCase()}</Text>
+            </View>
+            <Text style={st.body}>{item.body}</Text>
+            <Text style={st.sub}>{item.expires_at?'Expires '+item.expires_at:'No expiry set'}</Text>
           </View>)}
         </View>:null}
       </Panel>
