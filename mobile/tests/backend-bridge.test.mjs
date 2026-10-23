@@ -16,3 +16,9 @@ test('backend account deletion is explicit and keeps the on-device vault separat
   assert.ok(ui.includes('Delete backend account and server records'));
   assert.ok(ui.includes('Your encrypted on-device journal was not changed.'));
 });
+
+test('backend bridge can read admin-published public notices without uploading journal content',()=>{
+  assert.ok(ui.includes("apiCall(withOrigin(),'/announcements','GET')"));
+  assert.ok(ui.includes('SERVER ANNOUNCEMENTS'));
+  assert.ok(!ui.includes('note:latest.note'));
+});
