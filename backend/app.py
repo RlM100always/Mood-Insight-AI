@@ -146,6 +146,21 @@ def create_app(config: dict | None = None) -> Flask:
             db.execute("""CREATE TABLE IF NOT EXISTS announcements (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
                 active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created_at TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS activity_catalog (
+                id TEXT PRIMARY KEY, title TEXT NOT NULL, minutes INTEGER NOT NULL,
+                difficulty TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+                priority INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)""")
+            default_activities=[
+                ("breathing","Calming breath reset",5,"Easy",1,0),
+                ("winddown","Gentle wind-down routine",15,"Easy",1,0),
+                ("walk","Mindful walk",10,"Easy",1,0),
+                ("journal","Three-line reflection",8,"Easy",1,0),
+                ("connect","Contact someone you trust",10,"Easy",1,0),
+            ]
+            for item in default_activities:
+                db.execute("""INSERT OR IGNORE INTO activity_catalog
+                    (id,title,minutes,difficulty,enabled,priority,updated_at)
+                    VALUES (?,?,?,?,?,?,datetime('now'))""",item)
             for flag_key,flag_value in DEFAULT_FLAGS.items():
                 db.execute(
                     "INSERT OR IGNORE INTO system_flags(key,value_json,updated_at) VALUES (?,?,datetime('now'))",
@@ -366,20 +381,27 @@ def create_app(config: dict | None = None) -> Flask:
             value=valid_mood(payload)
         except ValueError as exc:
             return jsonify(error=str(exc)),400
-        choices=[
-            {"id":"breathing","title":"Calming breath reset","minutes":5,"difficulty":"Easy",
-             "score":6 if value["stress"]>=4 else 2,"reason":f"Your logged stress is {value['stress']}/5."},
-            {"id":"winddown","title":"Gentle wind-down routine","minutes":15,"difficulty":"Easy",
-             "score":6 if value["sleep_hours"]<7 else 2,"reason":f"You logged {value['sleep_hours']}h of sleep."},
-            {"id":"walk","title":"Mindful walk","minutes":10,"difficulty":"Easy",
-             "score":5 if value["exercise_min"]<20 else 2,"reason":f"You logged {value['exercise_min']} minutes of movement."},
-            {"id":"journal","title":"Three-line reflection","minutes":8,"difficulty":"Easy",
-             "score":5 if value["mood"]<=2 else 2,"reason":"A reflection can help you name your feelings."},
-            {"id":"connect","title":"Contact someone you trust","minutes":10,"difficulty":"Easy",
-             "score":3,"reason":"Social connection can be a supportive option."},
-        ]
-        selected=sorted(choices,key=lambda x:(-x["score"],x["id"]))[:3]
-        for obj in selected:obj.pop("score",None)
+        rules={
+            "breathing":{"score":6 if value["stress"]>=4 else 2,"reason":f"Your logged stress is {value['stress']}/5."},
+            "winddown":{"score":6 if value["sleep_hours"]<7 else 2,"reason":f"You logged {value['sleep_hours']}h of sleep."},
+            "walk":{"score":5 if value["exercise_min"]<20 else 2,"reason":f"You logged {value['exercise_min']} minutes of movement."},
+            "journal":{"score":5 if value["mood"]<=2 else 2,"reason":"A reflection can help you name your feelings."},
+            "connect":{"score":3,"reason":"Social connection can be a supportive option."},
+        }
+        with connect() as db:
+            catalog=db.execute("""SELECT id,title,minutes,difficulty,enabled,priority
+                FROM activity_catalog ORDER BY id""").fetchall()
+        choices=[]
+        for row in catalog:
+            if int(row["enabled"])!=1 or row["id"] not in rules:
+                continue
+            rule=rules[row["id"]]
+            choices.append({"id":row["id"],"title":row["title"],"minutes":row["minutes"],
+                "difficulty":row["difficulty"],"score":rule["score"],"priority":row["priority"],
+                "reason":rule["reason"]})
+        selected=sorted(choices,key=lambda x:(-x["score"],-x["priority"],x["id"]))[:3]
+        for obj in selected:
+            obj.pop("score",None);obj.pop("priority",None)
         return jsonify(activities=selected,engine="explainable local rules, not proven individual efficacy",
                        model_accuracy=None,medical_disclaimer="Not a diagnosis or treatment")
 
