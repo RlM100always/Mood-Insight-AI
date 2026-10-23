@@ -1,4 +1,6 @@
 import type {Entry, Session, Activity} from './types';
+import {CONTEXT_TAGS} from './context';
+export {CONTEXT_TAGS} from './context';
 
 export type Focus = 'balance'|'calm'|'sleep'|'energy'|'connection';
 export type Situation = 'general'|'overthinking'|'overwhelmed'|'low_motivation'|'lonely'|'sleep'|'stress'|'conflict'|'money';
@@ -18,11 +20,11 @@ export type Preferences = {
   max_minutes: number;
   weekly_checkins: number;
   weekly_activities: number;
+  favorite_activity_ids: string;
 };
 export const DEFAULT_PREFERENCES: Preferences = {
-  focus:'balance', max_minutes:15, weekly_checkins:5, weekly_activities:3
+  focus:'balance', max_minutes:15, weekly_checkins:5, weekly_activities:3, favorite_activity_ids:''
 };
-export const CONTEXT_TAGS = ['Work','Study','Family','Relationships','Health','Finances','Rest','Social','Other'] as const;
 export type Detail = Activity & {
   steps: string[];
   category: Focus;
@@ -200,6 +202,7 @@ export function recommendationPlan(
     }
     ratings.set(session.activity_id,old);
   }
+  const favorites=new Set((prefs.favorite_activity_ids||'').split(',').filter(Boolean));
   const ranked=CATALOG.map(item=>{
     const r=ratings.get(item.id)||{count:0,good:0,moodCount:0,moodShift:0};
     const situations=item.situations||['general'];
@@ -213,6 +216,7 @@ export function recommendationPlan(
       score+=1;
     }
     if(item.category===prefs.focus){score+=3;reasons.push('Fits your selected focus: '+prefs.focus+'.');}
+    if(favorites.has(item.id)){score+=2.5;reasons.push('You saved this activity as a favourite.');}
     if(recent&&latest){
       if(item.category==='calm'&&latest.stress_recorded===1&&latest.stress>=4){score+=4;reasons.push('Your latest check-in recorded high stress ('+latest.stress+'/5).');}
       if(item.category==='sleep'&&latest.sleep_recorded===1&&latest.sleep_hours<7){score+=3;reasons.push('Your latest check-in recorded '+latest.sleep_hours+' hours of sleep.');}
