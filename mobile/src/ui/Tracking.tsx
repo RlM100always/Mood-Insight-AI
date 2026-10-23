@@ -54,11 +54,19 @@ export function JournalSearch({entries,onEdit,onDelete}:{
  const [moodFilter,setMoodFilter]=useState<'all'|'low'|'mid'|'high'>('all');
  const [tagFilter,setTagFilter]=useState('all');
  const [notesOnly,setNotesOnly]=useState(false);
- const visible=useMemo(()=>filterJournal(entries,query,range).filter(e=>{
-   const moodOk=moodFilter==='all'||(moodFilter==='low'&&e.mood<=2)||(moodFilter==='mid'&&e.mood===3)||(moodFilter==='high'&&e.mood>=4);
-   const tagOk=tagFilter==='all'||(e.context_tags||'').split(',').includes(tagFilter);
-   return moodOk&&tagOk&&(!notesOnly||e.note.trim().length>0);
-  }),[query,range,moodFilter,tagFilter,notesOnly,entries]);
+ const [sort,setSort]=useState<'newest'|'oldest'|'moodHigh'|'moodLow'>('newest');
+ const availableTags=useMemo(()=>[...new Set([...CONTEXT_TAGS,...entries.flatMap(e=>(e.context_tags||'').split(',').filter(Boolean))])].sort((a,b)=>a.localeCompare(b)),[entries]);
+ const visible=useMemo(()=>{
+   const rows=filterJournal(entries,query,range).filter(e=>{
+    const moodOk=moodFilter==='all'||(moodFilter==='low'&&e.mood<=2)||(moodFilter==='mid'&&e.mood===3)||(moodFilter==='high'&&e.mood>=4);
+    const tagOk=tagFilter==='all'||(e.context_tags||'').split(',').includes(tagFilter);
+    return moodOk&&tagOk&&(!notesOnly||e.note.trim().length>0);
+   });
+   return [...rows].sort((a,b)=>sort==='oldest'?a.day.localeCompare(b.day):sort==='moodHigh'?b.mood-a.mood||b.day.localeCompare(a.day):sort==='moodLow'?a.mood-b.mood||b.day.localeCompare(a.day):b.day.localeCompare(a.day));
+  },[query,range,moodFilter,tagFilter,notesOnly,sort,entries]);
+ const average=visible.length?visible.reduce((sum,e)=>sum+e.mood,0)/visible.length:null;
+ const activeFilters=(query?1:0)+(range==='30'?0:1)+(moodFilter==='all'?0:1)+(tagFilter==='all'?0:1)+(notesOnly?1:0)+(sort==='newest'?0:1);
+ const clear=()=>{setQuery('');setRange('30');setMoodFilter('all');setTagFilter('all');setNotesOnly(false);setSort('newest');};
  return <View style={{gap:13}}>
  <Panel>
  <Text style={st.label}>SEARCH ENCRYPTED JOURNAL</Text>
@@ -76,11 +84,25 @@ export function JournalSearch({entries,onEdit,onDelete}:{
  </View>
  <Text style={st.label}>CONTEXT FILTER</Text>
  <View style={st.row}><Choose text="All contexts" selected={tagFilter==='all'} onPress={()=>setTagFilter('all')}/>
-  {CONTEXT_TAGS.map(x=><Choose key={x} text={x} selected={tagFilter===x} onPress={()=>setTagFilter(x)}/>)}
+  {availableTags.map(x=><Choose key={x} text={x} selected={tagFilter===x} onPress={()=>setTagFilter(x)}/>)}
  </View>
- <View style={st.row}><Choose text="Notes only" selected={notesOnly} onPress={()=>setNotesOnly(v=>!v)}/></View>
- <Text style={st.sub}>{visible.length} matching entries · all filters and search run only on your phone</Text>
+ <Text style={st.label}>SORT RESULTS</Text>
+ <View style={st.row}>
+  <Choose text="Newest" selected={sort==='newest'} onPress={()=>setSort('newest')}/>
+  <Choose text="Oldest" selected={sort==='oldest'} onPress={()=>setSort('oldest')}/>
+  <Choose text="Mood high → low" selected={sort==='moodHigh'} onPress={()=>setSort('moodHigh')}/>
+  <Choose text="Mood low → high" selected={sort==='moodLow'} onPress={()=>setSort('moodLow')}/>
+ </View>
+ <View style={[st.row,{alignItems:'center'}]}><Choose text="Notes only" selected={notesOnly} onPress={()=>setNotesOnly(v=>!v)}/>
+  {activeFilters?<Pressable accessibilityRole="button" onPress={clear} style={{minHeight:44,paddingHorizontal:12,justifyContent:'center'}}><Text style={{color:colors.main,fontWeight:'900'}}>Clear filters ({activeFilters})</Text></Pressable>:null}
+ </View>
+ <Text style={st.sub}>All filters, sorting and search run only on your phone.</Text>
  </Panel>
+ <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
+  <View style={{flex:1,minWidth:100,backgroundColor:colors.soft,borderRadius:15,padding:13}}><Text style={st.label}>MATCHES</Text><Text style={st.h}>{visible.length}</Text></View>
+  <View style={{flex:1,minWidth:100,backgroundColor:colors.soft,borderRadius:15,padding:13}}><Text style={st.label}>AVG MOOD</Text><Text style={st.h}>{average===null?'—':average.toFixed(1)+'/5'}</Text></View>
+  <View style={{flex:1,minWidth:100,backgroundColor:colors.soft,borderRadius:15,padding:13}}><Text style={st.label}>WITH NOTES</Text><Text style={st.h}>{visible.filter(e=>e.note.trim()).length}</Text></View>
+ </View>
  {visible.length===0?<Panel tint={colors.warm}><Text style={st.title}>No entries match</Text>
  <Text style={st.sub}>Try a different search or choose all history.</Text></Panel>:
  visible.map(e=><Panel key={e.id}>
