@@ -14,10 +14,10 @@ Go to **Releases** → open the newest **Android experimental APK** → expand *
 
 [Architecture implementation and limitations](ARCHITECTURE_IMPLEMENTATION.md) · [Australian ABS source and data details](research/AUSTRALIAN_DATA.md) · [Optional encrypted Flask API](backend/README.md)
 
-The native Patterns screen now includes an offline explorer for **real ABS 2020–2022 Australian mental-health population data**. These published population proportions are not valid individual next-day mood prediction training labels. The optional self-hosted Flask API implements account, mood log, history, recommendations, activity feedback and progress routes. It is **not automatically connected** and private notes are not uploaded. The optional HTTPS bridge is under Privacy.
+The native Insights screen now includes an offline explorer for **real ABS 2020–2022 Australian mental-health population data**. These published population proportions are not valid individual next-day mood prediction training labels. The optional self-hosted Flask API implements account, mood log, history, recommendations, activity feedback and progress routes. It is **not automatically connected** and private notes are not uploaded. The optional HTTPS bridge is under More → Privacy & data.
 
 ### Implemented
-- Native screens: mood check-ins with optional sleep/stress/movement fields, situation-aware guided actions, journal, trends, next-step suggestions, human-support directory and privacy controls
+- Native navigation: five primary destinations (Today, Insights, Activities, Journal, More), with Progress and Privacy/Data grouped under More; mood check-ins, guided actions, journal, trends, next-step suggestions, human-support directory and privacy controls
 - SQLCipher encrypted on-device SQLite + OS SecureStore
 - Offline interpretable, descriptive personal patterns and three wellbeing activity recommendations
 - **Deeper personal analytics:** 7/30/90-day summaries, logging coverage, mood variability and trend, sleep/movement/stress/energy/sleep-quality correlations with sample thresholds, streak/consistency views, and activity outcome summaries
