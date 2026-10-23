@@ -48,6 +48,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     master = app.config["MASTER_KEY"]
     secret = app.config["AUTH_SECRET"]
+    admin_password = app.config.get("ADMIN_PASSWORD","")
     if not isinstance(master, str) or len(master) != 64:
         raise RuntimeError("Set MOOD_API_AES_KEY to a random 64-hex-character (32-byte) key.")
     try:
@@ -56,6 +57,10 @@ def create_app(config: dict | None = None) -> Flask:
         raise RuntimeError("MOOD_API_AES_KEY must be valid hexadecimal.") from exc
     if len(key) != 32 or not isinstance(secret, str) or len(secret) < 32:
         raise RuntimeError("Set MOOD_API_SECRET to a random secret at least 32 characters long.")
+    if not isinstance(admin_password,str):
+        raise RuntimeError("MOOD_ADMIN_PASSWORD must be text.")
+    if admin_password and len(admin_password) < 16:
+        raise RuntimeError("MOOD_ADMIN_PASSWORD must be at least 16 characters when admin access is enabled.")
     aes = AESGCM(key)
     signer = URLSafeTimedSerializer(secret, salt="mood-insight-local-api-v1")
     admin_signer = URLSafeTimedSerializer(secret, salt="mood-insight-admin-v1")
@@ -438,7 +443,7 @@ def create_app(config: dict | None = None) -> Flask:
         app=app,
         connect=connect,
         admin_signer=admin_signer,
-        admin_password=str(app.config.get("ADMIN_PASSWORD","")),
+        admin_password=admin_password,
         auth_rate_limit=auth_rate_limit,
     )
     return app
