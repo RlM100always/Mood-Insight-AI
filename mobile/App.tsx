@@ -280,7 +280,7 @@ export default function App() {
               <Pressable accessibilityRole="button" accessibilityLabel={m.label}
                 accessibilityState={{selected:mood===m.mood}} key={m.mood}
                 onPress={()=>setMood(m.mood)} style={[s.mood,mood===m.mood && s.moodSelected]}>
-                <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={s.moodText}>{m.label}</Text>
+                <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={[s.moodText,mood===m.mood&&s.moodTextSelected]}>{m.label}</Text>
               </Pressable>)}</View>
             <View style={s.twoCol}>
               <View style={{flex:1}}><Field label="Sleep last night (hrs) · optional" value={sleep} onChangeText={setSleep} keyboardType="numeric" placeholder="Skip if unsure"/></View>
@@ -392,7 +392,7 @@ export default function App() {
     <View style={s.tabBar}>{NAV.map(n=><Pressable key={n.label}
       accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
       accessibilityState={{selected:tab===n.label}}
-      onPress={()=>navigateTab(n.label)} style={s.tabButton}>
+      onPress={()=>navigateTab(n.label)} style={[s.tabButton,tab===n.label&&s.tabButtonActive]}>
       <Text style={[s.navIcon,tab===n.label&&{color:C.primary}]}>{n.icon}</Text>
       <Text style={[s.navText,tab===n.label&&s.navActive]}>{n.label}</Text>
     </Pressable>)}</View>
@@ -402,8 +402,9 @@ export default function App() {
 const s=StyleSheet.create({
   root:{flex:1,backgroundColor:C.bg,paddingTop:Platform.OS==='android'?NativeStatusBar.currentHeight||0:0},
   center:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:C.bg,gap:20},
-  topBar:{height:65,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
-    borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white},
+  topBar:{height:68,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
+    borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,shadowColor:'#173B37',
+    shadowOpacity:.05,shadowRadius:8,shadowOffset:{width:0,height:3},elevation:2},
   logo:{fontSize:20,fontWeight:'900',letterSpacing:-.7,color:C.primary},
   pill:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#E9F3EF',borderRadius:100},
   pillText:{color:C.primary,fontSize:9,fontWeight:'800',letterSpacing:.8},
@@ -414,7 +415,8 @@ const s=StyleSheet.create({
   h2:{fontSize:20,fontWeight:'800',color:C.ink,marginTop:12,marginBottom:4},
   h3:{fontSize:17,fontWeight:'800',color:C.ink,marginBottom:5},
   subheading:{fontSize:14,lineHeight:22,color:C.muted},
-  card:{backgroundColor:C.white,borderRadius:23,padding:19,borderWidth:1,borderColor:'#EAEDEB',gap:8},
+  card:{backgroundColor:C.white,borderRadius:23,padding:19,borderWidth:1,borderColor:'#E5EAE7',gap:9,
+    shadowColor:'#173B37',shadowOpacity:.055,shadowRadius:13,shadowOffset:{width:0,height:5},elevation:2},
   hero:{fontSize:33,fontWeight:'900',color:C.ink,lineHeight:39,letterSpacing:-1.2,marginBottom:10},
   heroSmall:{fontSize:23,fontWeight:'800',color:C.ink},
   copy:{fontSize:14,lineHeight:22,color:C.muted,marginBottom:4},
@@ -424,16 +426,17 @@ const s=StyleSheet.create({
     paddingVertical:11,borderRadius:13,color:C.ink,fontSize:15,minHeight:48},
   multiline:{height:92,textAlignVertical:'top'},
   moodRow:{flexDirection:'row',gap:4,marginBottom:16},
-  mood:{flex:1,alignItems:'center',paddingVertical:9,paddingHorizontal:1,borderRadius:12,borderWidth:1,borderColor:'transparent'},
-  moodSelected:{backgroundColor:C.teal,borderColor:C.primary},
-  moodEmoji:{fontSize:26,marginBottom:5},
-  moodText:{fontSize:9,color:C.muted,fontWeight:'700',textAlign:'center'},
+  mood:{flex:1,minHeight:76,alignItems:'center',justifyContent:'center',paddingVertical:10,paddingHorizontal:2,borderRadius:14,borderWidth:1,borderColor:C.line,backgroundColor:C.white},
+  moodSelected:{backgroundColor:C.teal,borderColor:C.primary,borderWidth:2},
+  moodEmoji:{fontSize:27,marginBottom:5},
+  moodText:{fontSize:10,color:C.muted,fontWeight:'700',textAlign:'center'},
+  moodTextSelected:{color:C.primary,fontWeight:'900'},
   twoCol:{flexDirection:'row',gap:12},
   chipRow:{flexDirection:'row',gap:9,marginBottom:18},
-  chip:{width:44,height:41,borderWidth:1,borderColor:C.line,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:C.grey},
+  chip:{width:46,height:46,borderWidth:1,borderColor:C.line,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:C.grey},
   chipActive:{backgroundColor:C.primary,borderColor:C.primary},
   chipText:{fontSize:14,fontWeight:'800',color:C.ink},
-  primary:{backgroundColor:C.primary,borderRadius:13,alignItems:'center',paddingVertical:16,marginTop:5},
+  primary:{minHeight:52,backgroundColor:C.primary,borderRadius:14,alignItems:'center',justifyContent:'center',paddingHorizontal:16,paddingVertical:14,marginTop:5},
   primaryText:{fontSize:15,fontWeight:'800',color:C.white},
   footnote:{fontSize:11,lineHeight:18,color:C.muted,textAlign:'center',marginTop:8},
   statRow:{flexDirection:'row',justifyContent:'space-between',paddingTop:10},
@@ -460,13 +463,14 @@ const s=StyleSheet.create({
   danger:{borderWidth:1,borderColor:C.red,padding:13,borderRadius:12,marginTop:10,alignItems:'center'},
   dangerText:{fontWeight:'800',color:C.red},
   error:{color:C.red,fontWeight:'800',fontSize:14},
-  consent:{flexDirection:'row',gap:12,alignItems:'flex-start',paddingVertical:12},
+  consent:{minHeight:52,flexDirection:'row',gap:12,alignItems:'flex-start',paddingVertical:12},
   consentMark:{fontSize:25,color:C.primary},
   muted:{color:C.muted},
-  tabBar:{flexDirection:'row',paddingBottom:Platform.OS==='ios'?8:10,paddingTop:10,
-    paddingHorizontal:7,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
-  tabButton:{flex:1,alignItems:'center',justifyContent:'center',gap:3},
-  navIcon:{fontSize:21,color:'#94A29E',fontWeight:'800'},
-  navText:{fontSize:10,color:C.muted,fontWeight:'700'},
+  tabBar:{flexDirection:'row',paddingBottom:Platform.OS==='ios'?8:10,paddingTop:8,
+    paddingHorizontal:6,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
+  tabButton:{flex:1,minHeight:54,alignItems:'center',justifyContent:'center',gap:3,borderRadius:13,marginHorizontal:1},
+  tabButtonActive:{backgroundColor:'#EDF5F2'},
+  navIcon:{fontSize:20,color:'#94A29E',fontWeight:'800'},
+  navText:{fontSize:9.5,color:C.muted,fontWeight:'700',textAlign:'center'},
   navActive:{color:C.primary,fontWeight:'900'}
 });
