@@ -29,7 +29,14 @@ export function JournalSearch({entries,onEdit,onDelete}:{
 }){
  const [query,setQuery]=useState('');
  const [range,setRange]=useState<'30'|'all'>('30');
- const visible=useMemo(()=>filterJournal(entries,query,range),[query,range,entries]);
+ const [moodFilter,setMoodFilter]=useState<'all'|'low'|'mid'|'high'>('all');
+ const [tagFilter,setTagFilter]=useState('all');
+ const [notesOnly,setNotesOnly]=useState(false);
+ const visible=useMemo(()=>filterJournal(entries,query,range).filter(e=>{
+   const moodOk=moodFilter==='all'||(moodFilter==='low'&&e.mood<=2)||(moodFilter==='mid'&&e.mood===3)||(moodFilter==='high'&&e.mood>=4);
+   const tagOk=tagFilter==='all'||(e.context_tags||'').split(',').includes(tagFilter);
+   return moodOk&&tagOk&&(!notesOnly||e.note.trim().length>0);
+  }),[query,range,moodFilter,tagFilter,notesOnly,entries]);
  return <View style={{gap:13}}>
  <Panel>
  <Text style={st.label}>SEARCH ENCRYPTED JOURNAL</Text>
@@ -38,7 +45,19 @@ export function JournalSearch({entries,onEdit,onDelete}:{
  style={{backgroundColor:colors.bg,borderRadius:12,padding:12,color:colors.ink,fontSize:14}}/>
  <View style={st.row}><Choose text="Last 30 days" selected={range==='30'} onPress={()=>setRange('30')}/>
  <Choose text="All history" selected={range==='all'} onPress={()=>setRange('all')}/></View>
- <Text style={st.sub}>{visible.length} matching entries · searches run only on your phone</Text>
+ <Text style={st.label}>MOOD FILTER</Text>
+ <View style={st.row}>
+  <Choose text="All moods" selected={moodFilter==='all'} onPress={()=>setMoodFilter('all')}/>
+  <Choose text="Low · 1–2" selected={moodFilter==='low'} onPress={()=>setMoodFilter('low')}/>
+  <Choose text="Okay · 3" selected={moodFilter==='mid'} onPress={()=>setMoodFilter('mid')}/>
+  <Choose text="Good · 4–5" selected={moodFilter==='high'} onPress={()=>setMoodFilter('high')}/>
+ </View>
+ <Text style={st.label}>CONTEXT FILTER</Text>
+ <View style={st.row}><Choose text="All contexts" selected={tagFilter==='all'} onPress={()=>setTagFilter('all')}/>
+  {CONTEXT_TAGS.map(x=><Choose key={x} text={x} selected={tagFilter===x} onPress={()=>setTagFilter(x)}/>)}
+ </View>
+ <View style={st.row}><Choose text="Notes only" selected={notesOnly} onPress={()=>setNotesOnly(v=>!v)}/></View>
+ <Text style={st.sub}>{visible.length} matching entries · all filters and search run only on your phone</Text>
  </Panel>
  {visible.length===0?<Panel tint={colors.warm}><Text style={st.title}>No entries match</Text>
  <Text style={st.sub}>Try a different search or choose all history.</Text></Panel>:
