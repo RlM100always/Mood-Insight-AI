@@ -146,6 +146,11 @@ def create_app(config: dict | None = None) -> Flask:
             db.execute("""CREATE TABLE IF NOT EXISTS announcements (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
                 active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created_at TEXT NOT NULL)""")
+            announcement_columns={row["name"] for row in db.execute("PRAGMA table_info(announcements)").fetchall()}
+            if "level" not in announcement_columns:
+                db.execute("ALTER TABLE announcements ADD COLUMN level TEXT NOT NULL DEFAULT 'info'")
+            if "expires_at" not in announcement_columns:
+                db.execute("ALTER TABLE announcements ADD COLUMN expires_at TEXT")
             db.execute("""CREATE TABLE IF NOT EXISTS activity_catalog (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, minutes INTEGER NOT NULL,
                 difficulty TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
