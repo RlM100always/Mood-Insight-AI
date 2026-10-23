@@ -5,6 +5,12 @@ concurrency:
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/native-ios.yml'
+  pull_request:
     paths:
       - 'mobile/**'
       - '.github/workflows/native-ios.yml'
