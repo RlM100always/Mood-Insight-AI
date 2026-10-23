@@ -3,6 +3,7 @@ import {Alert,Pressable,Text,View} from 'react-native';
 import type {Entry,MoodScore,Session} from '../types';
 import type {Detail,Focus,Preferences,Situation} from '../deep';
 import {recommendationPlan,SITUATIONS} from '../deep';
+import {activityOutcomeInsights} from '../advanced';
 import {localDay,readableDay} from '../insights';
 import {logSession,rateSession} from '../data/vault';
 import {Panel,Heading,Choose,Action,colors,st} from './Shared';
@@ -18,6 +19,7 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
  const [moodAfter,setMoodAfter]=useState<Record<string,MoodScore>>({});
  const [showAll,setShowAll]=useState(false);
  const items=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
+ const outcomes=useMemo(()=>activityOutcomeInsights(sessions),[sessions]);
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
  useEffect(()=>{
   if(!running||!active)return;
@@ -103,6 +105,12 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
    <Action text="See guided steps →" onPress={()=>select(item)}/>
   </Panel>)}
   <Action text={showAll?'Show only my top three':'Browse all activities'} onPress={()=>setShowAll(v=>!v)}/>
+  <Heading>What your feedback is teaching the app</Heading>
+  {outcomes.length?outcomes.slice(0,3).map(x=><Panel key={'outcome-'+x.id} tint={colors.soft}>
+   <Text style={st.title}>{x.id.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())}</Text>
+   <Text style={st.body}>{x.attempts} attempts · {x.rated?Math.round((x.helpfulRate||0)*100)+'% marked helpful across '+x.rated+' ratings':'not rated yet'}.</Text>
+   <Text style={st.sub}>{x.moodSamples?'Average recorded mood shift '+((x.averageMoodShift||0)>0?'+':'')+(x.averageMoodShift||0).toFixed(2)+' across '+x.moodSamples+' before/after pairs.':'Add an optional mood-after score to build a before/after history.'}</Text>
+  </Panel>):<Panel><Text style={st.body}>Try an activity, then rate it. Your own feedback changes future rankings.</Text></Panel>}
   <Heading>Feedback that improves your plan</Heading>
   {sessions.length===0?<Panel><Text style={st.body}>Try an activity and record how helpful it felt. Your responses can change future rankings.</Text></Panel>:
    sessions.slice(0,12).map(item=><Panel key={item.id}>
