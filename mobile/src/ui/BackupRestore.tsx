@@ -21,10 +21,19 @@ export function BackupRestore({refresh}:Props){
    const uri=FileSystem.cacheDirectory+'mood-insight-backup-'+new Date().toISOString().slice(0,10)+'.mibak';
    await FileSystem.writeAsStringAsync(uri,encrypted,{encoding:FileSystem.EncodingType.UTF8});
    if(!(await Sharing.isAvailableAsync()))throw new Error('The system share sheet is unavailable on this device.');
-   await Sharing.shareAsync(uri,{mimeType:'application/octet-stream',dialogTitle:'Save encrypted Mood Insight backup'});
-   setStatus('Encrypted backup prepared. Keep the file and passphrase separately; journal text is encrypted.');
-   setPassphrase('');setConfirm('');
-  }catch(e){Alert.alert('Backup could not be exported',e instanceof Error?e.message:'Please try again.');}
+   // File creation is the app-controlled success boundary. Android share sheets can
+   // keep their result callback pending even after this app is foregrounded again,
+   // so do not delay user feedback or lock the UI on an external chooser callback.
+   setStatus('Encrypted backup prepared. Choose where to save it in the system share sheet; keep the file and passphrase separately.');
+   setPassphrase('');setConfirm('');setBusy(false);
+   try{
+    await Sharing.shareAsync(uri,{mimeType:'application/octet-stream',dialogTitle:'Save encrypted Mood Insight backup'});
+    setStatus('Encrypted backup prepared. Keep the saved file and passphrase separately; journal text is encrypted.');
+   }catch(e){
+    setStatus('Encrypted backup prepared in private temporary storage, but the system share sheet did not complete. Re-export when you are ready to save a copy.');
+    Alert.alert('Backup share did not complete',e instanceof Error?e.message:'Please try export again.');
+   }
+  }catch(e){Alert.alert('Backup could not be prepared',e instanceof Error?e.message:'Please try again.');}
   finally{setBusy(false);}
  };
  const chooseRestore=async()=>{
