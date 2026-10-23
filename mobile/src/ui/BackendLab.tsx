@@ -46,6 +46,7 @@ export function ResearchApiBridge({entries}:Props){
   const [busy,setBusy]=useState(false);
   const [sharing,setSharing]=useState(false);
   const [remote,setRemote]=useState<RemoteHistory|null>(null);
+  const [announcements,setAnnouncements]=useState<{id:string;title:string;body:string;created_at:string}[]>([]);
   const session=useRef<string>('');
   const action=async(work:()=>Promise<void>)=>{
     if(busy)return;setBusy(true);
@@ -59,6 +60,8 @@ export function ResearchApiBridge({entries}:Props){
   const check=()=>void action(async()=>{
     const health=await apiCall(withOrigin(),'/health','GET');
     const info=await apiCall(withOrigin(),'/model_info','GET');
+    const notices=await apiCall(withOrigin(),'/announcements','GET');
+    setAnnouncements(Array.isArray(notices.announcements)?notices.announcements:[]);
     setStatus('Connected to '+health.service+'. ML: '+info.data_origin+
       '. Measured real-world accuracy: '+(info.accuracy??'not available')+'.');
   });
@@ -139,8 +142,14 @@ export function ResearchApiBridge({entries}:Props){
           accessibilityLabel="HTTPS Flask API URL" value={url} onChangeText={setUrl}
           placeholder="https://your-private-api.example" style={{backgroundColor:colors.bg,
             color:colors.ink,padding:12,borderRadius:10}}/>
-        <Action text={busy?'Working…':'Check health and model information'} onPress={check}/>
+        <Action text={busy?'Working…':'Check health, notices and model information'} onPress={check}/>
         <Text selectable style={st.sub}>{status}</Text>
+        {announcements.length?<View style={{gap:8}}>
+          <Text style={st.label}>SERVER ANNOUNCEMENTS</Text>
+          {announcements.slice(0,3).map(item=><View key={item.id} style={{backgroundColor:colors.soft,padding:10,borderRadius:10}}>
+            <Text style={st.title}>{item.title}</Text><Text style={st.sub}>{item.body}</Text>
+          </View>)}
+        </View>:null}
       </Panel>
       <Panel>
         <Heading>Research account</Heading>
