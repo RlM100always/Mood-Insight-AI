@@ -19,7 +19,7 @@ In `backend/app.py`, bind `127.0.0.1:5055` by default. Paths:
 
 The Flask backend is a **separate self-hosted optional layer**, not inherently running on a phone. It stores opt-in participant records encrypted with AES-256-GCM envelope encryption in its SQLite database, whereas the mobile application stores journals in native SQLCipher SQLite. Only developer-operated HTTPS endpoints are accepted by the optional `ResearchApiBridge`; no personal data leaves the phone by default. This differs from the diagram's implication that the Flask backend can directly query the phone's SQLCipher vault, which would not be technically accurate across separate machines.
 
-The optional UI under **Privacy → Optional Flask backend connection** can check `/health` and `/model_info`, register/login an account, explicitly send **only one numerical mood entry at a time**, request optional Flask recommendations, and retrieve backend history. No journal notes or local historical bulk upload. Backend use is not required for offline native functionality. A real separate-device HTTPS deployment has not been provided or tested.
+The optional UI under **More → Privacy & data → Optional Flask backend connection** can check `/health` and `/model_info`, register/login an account, explicitly send **only one numerical mood entry at a time**, request optional Flask recommendations, and retrieve backend history. No journal notes or local historical bulk upload. Backend use is not required for offline native functionality. A real separate-device HTTPS deployment has not been provided or tested.
 
 ## 3. Machine learning, scikit-learn
 - Python-only scikit-learn training and model comparison: `research/model_lab.py`, `research/train_synthetic_demo.py`.
@@ -30,7 +30,7 @@ The optional UI under **Privacy → Optional Flask backend connection** can chec
 
 ## 4. Real Australian data, no fabrication
 - `research/data/nsmhw_2020_2022.json`: sourced from published Australian Bureau of Statistics NSMHW 2020–2022 tables (age/sex and disorder group/sex public percentages).
-- `mobile/src/data/australian_nsmhw.json`: same dataset bundled locally in the app; illustrated in Patterns → Australian research evidence.
+- `mobile/src/data/australian_nsmhw.json`: same dataset bundled locally in the app; illustrated in Insights → Australian research evidence.
 - Primary source: https://www.abs.gov.au/statistics/health/mental-health/national-study-mental-health-and-wellbeing/2020-2022
 - HILDA longitudinal data: approved researchers must request access: https://www.dss.gov.au/long-term-research/accessing-our-datasets
 - University of Sydney's Innowell Australian adult wellbeing study: individual data available on reasonable request: https://www.nature.com/articles/s44184-024-00078-7
