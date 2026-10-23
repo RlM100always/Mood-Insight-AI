@@ -10,7 +10,8 @@ import {
   hasConsent, acceptConsent, openVault, listEntries, saveEntry, removeEntry,
   listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences, checkVaultHealth
 } from './src/data/vault';
-import {averageMood, currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
+import {currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
+import {windowSummary} from './src/advanced';
 import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
 import {buildEntryInput} from './src/checkin';
 import type {Preferences,Situation} from './src/deep';
@@ -201,6 +202,7 @@ export default function App() {
   const activities = useMemo(()=>recommend(entries),[entries]);
   const nextStep = useMemo(()=>suggestedNextStep(entries,sessions),[entries,sessions]);
   const patterns = useMemo(()=>detectPatterns(entries),[entries]);
+  const weekSummary = useMemo(()=>windowSummary(entries,7),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
   const currentDay=localDay();
@@ -253,9 +255,9 @@ export default function App() {
           <Heading kicker="Daily check-in" title="How are you feeling?" description="There is no right answer. Take a moment for yourself."/>
           <Card tint={C.teal}><Text style={s.kicker}>YOUR WEEK SO FAR</Text>
             <View style={s.statRow}>
-              <View><Text style={s.statNum}>{averageMood(entries)}</Text><Text style={s.statLabel}>Average mood</Text></View>
+              <View><Text style={s.statNum}>{weekSummary.averageMood===null?'–':weekSummary.averageMood.toFixed(1)}</Text><Text style={s.statLabel}>7-day avg mood</Text></View>
               <View><Text style={s.statNum}>{currentStreak(entries)}</Text><Text style={s.statLabel}>Day streak</Text></View>
-              <View><Text style={s.statNum}>{entries.length}</Text><Text style={s.statLabel}>Check-ins</Text></View>
+              <View><Text style={s.statNum}>{weekSummary.logged}</Text><Text style={s.statLabel}>Days logged / 7</Text></View>
             </View>
           </Card>
           <Card tint={C.lilac}>
