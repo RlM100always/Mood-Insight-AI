@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {activityOutcomeInsights,consistencyInsights,contextMoodRanking,dataCoverage,dataQualityCoach,moodCalendar,recoveryProfile,signalAssociations,weekComparison,windowSummary} from '../src/advanced.ts';
+import {activityOutcomeInsights,consistencyInsights,contextMoodRanking,dataCoverage,dataQualityCoach,insightReadiness,moodCalendar,moodDistribution,recoveryProfile,signalAssociations,weekComparison,weekdayMoodProfile,weeklySnapshots,windowSummary} from '../src/advanced.ts';
 
 const entry=(day,mood=3,over={})=>({id:day,day,mood,sleep_hours:7,exercise_min:20,stress:3,energy:3,sleep_quality:3,
  sleep_recorded:1,exercise_recorded:1,stress_recorded:1,energy_recorded:1,sleep_quality_recorded:1,
@@ -71,4 +71,47 @@ test('data quality coach never asks to fabricate missing values',()=>{
  const rows=[entry('2026-10-21',3,{sleep_recorded:0}),entry('2026-10-22',3,{sleep_recorded:0}),entry('2026-10-23',3,{sleep_recorded:0})];
  const r=dataQualityCoach(rows,new Date(2026,9,23,12));
  assert.match(r.label,/sleep/);assert.match(r.message,/Skipping is always allowed/);
+});
+
+
+test('mood distribution preserves all five categories and real shares',()=>{
+ const rows=[entry('2026-10-20',1),entry('2026-10-21',3),entry('2026-10-22',3),entry('2026-10-23',5)];
+ const r=moodDistribution(rows,30,new Date(2026,9,23,12));
+ assert.deepEqual(r.map(x=>x.count),[1,0,2,0,1]);
+ assert.equal(r.find(x=>x.mood===3).share,.5);
+ assert.equal(r.reduce((s,x)=>s+x.share,0),1);
+});
+test('weekly snapshots keep four real seven-day buckets with gaps',()=>{
+ const rows=[entry('2026-10-03',2),entry('2026-10-10',3),entry('2026-10-17',4),entry('2026-10-23',5)];
+ const r=weeklySnapshots(rows,4,new Date(2026,9,23,12));
+ assert.equal(r.length,4);
+ assert.equal(r[3].end,'2026-10-23');
+ assert.equal(r[3].logged,1);
+ assert.equal(r[3].averageMood,5);
+ assert.equal(r[3].coverage,1/7);
+});
+test('weekday profile requires at least two real examples per weekday',()=>{
+ const rows=[
+  entry('2026-10-05',2),entry('2026-10-12',4),
+  entry('2026-10-06',5)
+ ];
+ const r=weekdayMoodProfile(rows,90,new Date(2026,9,23,12));
+ assert.equal(r.length,1);
+ assert.equal(r[0].weekday,'Mon');
+ assert.equal(r[0].averageMood,3);
+ assert.equal(r[0].samples,2);
+});
+test('insight readiness grows with real coverage but never invents records',()=>{
+ const early=insightReadiness([entry('2026-10-23',3,{sleep_recorded:0,exercise_recorded:0,stress_recorded:0,energy_recorded:0,sleep_quality_recorded:0})],new Date(2026,9,23,12));
+ const rows=[];
+ for(let i=0;i<30;i++){
+  const d=new Date(2026,9,23-i,12);
+  const day=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  rows.push(entry(day,(i%5)+1,{context_tags:i<15?'Work':'Rest'}));
+ }
+ const strong=insightReadiness(rows,new Date(2026,9,23,12));
+ assert.equal(early.recordedDays,1);
+ assert.ok(strong.score>early.score);
+ assert.equal(strong.recordedDays,30);
+ assert.equal(strong.level,'strong');
 });
