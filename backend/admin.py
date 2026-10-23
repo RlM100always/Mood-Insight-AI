@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import base64
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
 import re
 import secrets
 import sqlite3
+import struct
+import time
 from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -34,6 +39,10 @@ FLAG_META = {
     "announcements_enabled": ("Communication", "Expose active admin announcements to connected clients."),
 }
 DASHBOARD_PATH = Path(__file__).with_name("admin_dashboard.html")
+DASHBOARD_CSS_PATH = Path(__file__).with_name("admin_dashboard.css")
+DASHBOARD_JS_PATH = Path(__file__).with_name("admin_dashboard.js")
+RULE_TYPES = {"always","stress_gte","sleep_lt","movement_lt","mood_lte","energy_lte","sleep_quality_lte"}
+CATEGORIES = {"balance","calm","sleep","energy","connection"}
 
 
 def register_admin_routes(
@@ -41,6 +50,7 @@ def register_admin_routes(
     connect: Callable,
     admin_signer,
     admin_password: str,
+    admin_totp_secret: str,
     auth_rate_limit: Callable,
 ) -> None:
     def audit(action: str, target: str = "", detail: str = "") -> None:
