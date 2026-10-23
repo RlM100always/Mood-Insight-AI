@@ -256,12 +256,18 @@ find_and_tap "👍 Helpful"
 sleep 2
 echo "PASS: activity feedback control accepted a tap"
 
-find_and_tap "Progress tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Progress & goals"
 scroll_to_top
 wait_for_text_while_scrolling "Your wellbeing journey"
-echo "PASS: Progress screen and activity goals rendered"
+echo "PASS: More hub and Progress screen rendered"
 
-find_and_tap "Privacy tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Privacy & data"
 scroll_to_top
 wait_for_text_while_scrolling "Your data. Your choice."
 find_and_tap "Check app features"
@@ -330,7 +336,10 @@ wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
 echo "PASS: restored journal record is readable after decrypting on-device"
 
 # Authenticated ciphertext corruption must be rejected without removing the restored record.
-find_and_tap "Privacy tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Privacy & data"
 scroll_to_top
 wait_for_text_while_scrolling "Your data. Your choice."
 enter_backup_passphrase "$BACKUP_PASSPHRASE"
