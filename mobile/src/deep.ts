@@ -30,9 +30,11 @@ export type Detail = Activity & {
   evidence: string;
   trials: number;
   helpful: number;
+  moodSamples: number;
+  averageMoodShift: number | null;
   situations: Situation[];
 };
-type CatalogItem = Omit<Detail,'reason'|'score'|'evidence'|'trials'|'helpful'|'situations'> & {purpose:string; situations?:Situation[]};
+type CatalogItem = Omit<Detail,'reason'|'score'|'evidence'|'trials'|'helpful'|'moodSamples'|'averageMoodShift'|'situations'> & {purpose:string; situations?:Situation[]};
 const CATALOG: CatalogItem[] = [
   {id:'breathing',title:'Calming breath reset',minutes:5,difficulty:'Easy',category:'calm',
     situations:['stress','overthinking','general'],
@@ -187,14 +189,17 @@ export function recommendationPlan(
 ):Detail[] {
   const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
   const recent=!!latest&&ageInDays(latest.day,now)>=0&&ageInDays(latest.day,now)<=7;
-  const ratings=new Map<string,{count:number;good:number}>();
+  const ratings=new Map<string,{count:number;good:number;moodCount:number;moodShift:number}>();
   for(const session of sessions){
-    if(session.helpful!==0&&session.helpful!==1)continue;
-    const old=ratings.get(session.activity_id)||{count:0,good:0};
-    old.count+=1;old.good+=session.helpful;ratings.set(session.activity_id,old);
+    const old=ratings.get(session.activity_id)||{count:0,good:0,moodCount:0,moodShift:0};
+    if(session.helpful===0||session.helpful===1){old.count+=1;old.good+=session.helpful;}
+    if(session.mood_before!==null&&session.mood_after!==null){
+      old.moodCount+=1;old.moodShift+=session.mood_after-session.mood_before;
+    }
+    ratings.set(session.activity_id,old);
   }
   const ranked=CATALOG.map(item=>{
-    const r=ratings.get(item.id)||{count:0,good:0};
+    const r=ratings.get(item.id)||{count:0,good:0,moodCount:0,moodShift:0};
     const situations=item.situations||['general'];
     let score=1;
     const reasons:string[]=[];
@@ -221,11 +226,16 @@ export function recommendationPlan(
       if(r.count>=2&&r.good/r.count<.25)score-=3;
       if(r.count>=2&&r.good/r.count>=.75)score+=1;
     }
+    const avgShift=r.moodCount?r.moodShift/r.moodCount:null;
+    if(avgShift!==null&&r.moodCount>=2){
+      score+=Math.max(-1.5,Math.min(1.5,avgShift))*1.25;
+      reasons.push('Across '+r.moodCount+' before/after mood pairs, the average recorded change was '+(avgShift>0?'+':'')+avgShift.toFixed(1)+' points.');
+    }
     if(!reasons.length)reasons.push('A low-pressure option for '+item.purpose+'.');
-    const personalEvidence=r.count?'Your own activity ratings influence this ranking.':'No personal helpfulness history for this activity yet.';
+    const personalEvidence=(r.count||r.moodCount)?'Your own activity ratings and recorded before/after mood pairs can influence this ranking.':'No personal feedback history for this activity yet.';
     return {...item,situations,reason:reasons.join(' '),
-      evidence:personalEvidence+' Suggestions are options, not guaranteed treatment.',
-      score,helpful:r.good,trials:r.count};
+      evidence:personalEvidence+' Before/after changes are descriptive and do not prove the activity caused a mood change. Suggestions are options, not guaranteed treatment.',
+      score,helpful:r.good,trials:r.count,moodSamples:r.moodCount,averageMoodShift:avgShift};
   }).sort((a,b)=>b.score-a.score||a.minutes-b.minutes||a.id.localeCompare(b.id));
   return showAll?ranked:ranked.slice(0,3);
 }
