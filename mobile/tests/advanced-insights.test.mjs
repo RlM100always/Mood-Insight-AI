@@ -46,8 +46,8 @@ test('week comparison uses two real seven-day windows',()=>{
  const now=new Date(2026,9,23,12);
  const rows=[entry('2026-10-10',1),entry('2026-10-16',2),entry('2026-10-17',3),entry('2026-10-20',4),entry('2026-10-23',4)];
  const r=weekComparison(rows,now);
- assert.equal(r.currentLogged,3);assert.equal(r.previousLogged,1);
- assert.equal(r.currentAverage,11/3);assert.equal(r.previousAverage,2);assert.ok(r.delta>1.6);
+ assert.equal(r.currentLogged,3);assert.equal(r.previousLogged,2);
+ assert.equal(r.currentAverage,11/3);assert.equal(r.previousAverage,1.5);assert.ok(r.delta>2.1);
 });
 test('context ranking needs repeated tags and reports descriptive differences',()=>{
  const rows=[
