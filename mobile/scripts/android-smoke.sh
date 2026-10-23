@@ -282,9 +282,14 @@ find_and_tap "I completed or tried this"
 wait_for_text "Saved locally"
 find_and_tap "OK"
 echo "PASS: guided activity completion was stored"
+# Completion returns to the activity library. Re-select the tab to reset the
+# shared ScrollView to the top, where pending feedback is intentionally surfaced.
+find_and_tap "Activities tab"
+scroll_to_top
+wait_for_text "How did your recent activity feel?"
 find_and_tap "👍 Helpful"
 sleep 2
-echo "PASS: activity feedback control accepted a tap"
+echo "PASS: immediate activity feedback control accepted a tap"
 
 find_and_tap "More tab"
 scroll_to_top
