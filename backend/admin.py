@@ -621,57 +621,84 @@ def register_admin_routes(
     def admin_activities():
         with connect() as db:
             rows = db.execute(
-                """SELECT id,title,minutes,difficulty,enabled,priority,updated_at
+                """SELECT id,title,minutes,difficulty,enabled,priority,updated_at,
+                   category,rule_type,threshold,reason
                    FROM activity_catalog ORDER BY priority DESC,id"""
             ).fetchall()
-        return jsonify(activities=[dict(row) for row in rows])
+        return jsonify(activities=[dict(row) for row in rows], rule_types=sorted(RULE_TYPES), categories=sorted(CATEGORIES))
+
+    def validate_activity_payload(value, activity_id: str | None = None):
+        if not isinstance(value, dict):
+            raise ValueError("Expected JSON object")
+        title=value.get("title");minutes=value.get("minutes");difficulty=value.get("difficulty")
+        enabled=value.get("enabled");priority=value.get("priority");category=value.get("category")
+        rule_type=value.get("rule_type");threshold=value.get("threshold");reason=value.get("reason")
+        if activity_id is not None and not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            raise ValueError("Invalid activity id")
+        if not isinstance(title,str) or not 1<=len(title.strip())<=100: raise ValueError("Title must be 1–100 characters")
+        if isinstance(minutes,bool) or not isinstance(minutes,int) or not 1<=minutes<=120: raise ValueError("Minutes must be 1–120")
+        if difficulty not in {"Easy","Moderate"}: raise ValueError("Difficulty must be Easy or Moderate")
+        if type(enabled) is not bool: raise ValueError("enabled must be boolean")
+        if isinstance(priority,bool) or not isinstance(priority,int) or not -10<=priority<=10: raise ValueError("Priority must be -10 to 10")
+        if category not in CATEGORIES: raise ValueError("Unknown category")
+        if rule_type not in RULE_TYPES: raise ValueError("Unknown rule type")
+        if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not -100<=float(threshold)<=100: raise ValueError("Threshold must be numeric")
+        if not isinstance(reason,str) or not 1<=len(reason.strip())<=300: raise ValueError("Reason must be 1–300 characters")
+        return dict(title=title.strip(),minutes=minutes,difficulty=difficulty,enabled=enabled,priority=priority,
+                    category=category,rule_type=rule_type,threshold=float(threshold),reason=reason.strip())
+
+    @app.post("/admin/api/activities")
+    @admin_bearer
+    def admin_activity_create():
+        value=request.get_json(silent=True)
+        activity_id=value.get("id") if isinstance(value,dict) else None
+        try:
+            if not isinstance(activity_id,str) or not _ACTIVITY_ID_RE.fullmatch(activity_id):
+                raise ValueError("Activity id must start with a letter and use lowercase letters, numbers or underscores")
+            payload=validate_activity_payload(value,activity_id)
+        except ValueError as exc:
+            return jsonify(error=str(exc)),400
+        with connect() as db:
+            try:
+                db.execute("""INSERT INTO activity_catalog
+                    (id,title,minutes,difficulty,enabled,priority,category,rule_type,threshold,reason,updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))""",
+                    (activity_id,payload["title"],payload["minutes"],payload["difficulty"],int(payload["enabled"]),
+                     payload["priority"],payload["category"],payload["rule_type"],payload["threshold"],payload["reason"]))
+            except sqlite3.IntegrityError:
+                return jsonify(error="Activity id already exists"),409
+        audit("activity_catalog_created",activity_id,json.dumps(payload,sort_keys=True))
+        return jsonify(status="created",activity_id=activity_id),201
 
     @app.put("/admin/api/activities/<activity_id>")
     @admin_bearer
     def admin_activity_update(activity_id: str):
-        if not _ACTIVITY_ID_RE.fullmatch(activity_id):
-            return jsonify(error="Invalid activity id"), 400
-        value = request.get_json(silent=True)
-        if not isinstance(value, dict):
-            return jsonify(error="Expected JSON object"), 400
-        title = value.get("title")
-        minutes = value.get("minutes")
-        difficulty = value.get("difficulty")
-        enabled = value.get("enabled")
-        priority = value.get("priority")
-        if not isinstance(title, str) or not (1 <= len(title.strip()) <= 100):
-            return jsonify(error="Title must be 1–100 characters"), 400
-        if isinstance(minutes, bool) or not isinstance(minutes, int) or not 1 <= minutes <= 120:
-            return jsonify(error="Minutes must be an integer from 1 to 120"), 400
-        if difficulty not in {"Easy", "Moderate"}:
-            return jsonify(error="Difficulty must be Easy or Moderate"), 400
-        if type(enabled) is not bool:
-            return jsonify(error="enabled must be boolean"), 400
-        if isinstance(priority, bool) or not isinstance(priority, int) or not -10 <= priority <= 10:
-            return jsonify(error="Priority must be an integer from -10 to 10"), 400
+        try:
+            payload=validate_activity_payload(request.get_json(silent=True),activity_id)
+        except ValueError as exc:
+            return jsonify(error=str(exc)),400
         with connect() as db:
-            changed = db.execute(
-                """UPDATE activity_catalog
-                   SET title=?,minutes=?,difficulty=?,enabled=?,priority=?,updated_at=datetime('now')
-                   WHERE id=?""",
-                (title.strip(), minutes, difficulty, int(enabled), priority, activity_id),
-            ).rowcount
-        if not changed:
-            return jsonify(error="Activity not found"), 404
-        audit(
-            "activity_catalog_updated",
-            activity_id,
-            json.dumps(
-                {
-                    "title": title.strip(),
-                    "minutes": minutes,
-                    "difficulty": difficulty,
-                    "enabled": enabled,
-                    "priority": priority,
-                }
-            ),
-        )
-        return jsonify(status="saved", activity_id=activity_id)
+            changed=db.execute("""UPDATE activity_catalog SET title=?,minutes=?,difficulty=?,enabled=?,
+                priority=?,category=?,rule_type=?,threshold=?,reason=?,updated_at=datetime('now') WHERE id=?""",
+                (payload["title"],payload["minutes"],payload["difficulty"],int(payload["enabled"]),payload["priority"],
+                 payload["category"],payload["rule_type"],payload["threshold"],payload["reason"],activity_id)).rowcount
+        if not changed:return jsonify(error="Activity not found"),404
+        audit("activity_catalog_updated",activity_id,json.dumps(payload,sort_keys=True))
+        return jsonify(status="saved",activity_id=activity_id)
+
+    @app.delete("/admin/api/activities/<activity_id>")
+    @admin_bearer
+    def admin_activity_delete(activity_id: str):
+        if not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            return jsonify(error="Invalid activity id"),400
+        with connect() as db:
+            in_use=int(db.execute("SELECT COUNT(*) FROM activity_logs WHERE activity_id=?",(activity_id,)).fetchone()[0] or 0)
+            if in_use:
+                return jsonify(error="Activity has usage history; disable it instead of deleting it."),409
+            changed=db.execute("DELETE FROM activity_catalog WHERE id=?",(activity_id,)).rowcount
+        if not changed:return jsonify(error="Activity not found"),404
+        audit("activity_catalog_deleted",activity_id)
+        return jsonify(status="deleted",activity_id=activity_id)
 
     @app.get("/admin/api/announcements")
     @admin_bearer
