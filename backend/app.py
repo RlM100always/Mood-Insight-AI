@@ -301,7 +301,7 @@ def create_app(config: dict | None = None) -> Flask:
         resp.headers["X-Frame-Options"]="DENY"
         resp.headers["Permissions-Policy"]="camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         if request.path.startswith("/admin"):
-            resp.headers["Content-Security-Policy"]="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+            resp.headers["Content-Security-Policy"]="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
         return resp
 
     @app.get("/health")
