@@ -326,9 +326,11 @@ def create_app(config: dict | None = None) -> Flask:
         except (ValueError,KeyError,TypeError):
             return jsonify(error="user_id and password required"),400
         with connect() as db:
-            row=db.execute("SELECT password_hash FROM users WHERE id=?",(user_id,)).fetchone()
+            row=db.execute("SELECT password_hash,disabled FROM users WHERE id=?",(user_id,)).fetchone()
         if row is None or not check_password_hash(row["password_hash"],password):
             return jsonify(error="Invalid login credentials"),401
+        if int(row["disabled"])==1:
+            return jsonify(error="This backend account is disabled"),403
         return jsonify(token=issue(user_id),expires_in_seconds=3600)
 
     @app.get("/user")
@@ -341,6 +343,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/log_mood")
     @bearer
     def log_mood():
+        if not flag_enabled("mood_logging_enabled",True):
+            return jsonify(error="Backend mood logging is temporarily disabled"),503
         try:
             values=valid_mood(body())
         except ValueError as exc:
@@ -413,6 +417,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/activity")
     @bearer
     def log_activity():
+        if not flag_enabled("activity_logging_enabled",True):
+            return jsonify(error="Backend activity logging is temporarily disabled"),503
         try:
             value=body()
             activity=str(value["activity_id"])
@@ -432,6 +438,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/activity/<activity_id>/feedback")
     @bearer
     def feedback(activity_id):
+        if not flag_enabled("activity_logging_enabled",True):
+            return jsonify(error="Backend activity logging is temporarily disabled"),503
         try:
             helpful=body()["helpful"]
             if type(helpful) is not bool:raise ValueError()
