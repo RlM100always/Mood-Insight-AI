@@ -18,8 +18,12 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
  const [busy,setBusy]=useState(false);
  const [moodAfter,setMoodAfter]=useState<Record<string,MoodScore>>({});
  const [showAll,setShowAll]=useState(false);
- const items=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
+ const [showFavorites,setShowFavorites]=useState(false);
+ const favorites=useMemo(()=>new Set((preferences.favorite_activity_ids||'').split(',').filter(Boolean)),[preferences.favorite_activity_ids]);
+ const ranked=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
+ const items=useMemo(()=>showFavorites?ranked.filter(x=>favorites.has(x.id)):ranked,[ranked,showFavorites,favorites]);
  const outcomes=useMemo(()=>activityOutcomeInsights(sessions),[sessions]);
+ const pendingFeedback=useMemo(()=>sessions.find(item=>item.helpful===null)??null,[sessions]);
  const today=localDay();
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
  const todayEntry=entries.find(e=>e.day===today);
@@ -31,6 +35,11 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
   return ()=>clearInterval(t);
  },[running,active]);
  const patchPref=(p:Preferences)=>void onPreferences(p).catch(e=>Alert.alert('Could not save plan',String(e)));
+ const toggleFavorite=(id:string)=>{
+  const next=new Set(favorites);
+  if(next.has(id))next.delete(id);else next.add(id);
+  patchPref({...preferences,favorite_activity_ids:[...next].sort().join(',')});
+ };
  const select=(item:Detail)=>{setActive(item);setRemaining(item.minutes*60);setRunning(false);};
  const finish=async()=>{
   if(!active||busy)return;
@@ -76,6 +85,20 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
   <Action text={busy?'Saving…':'I completed or tried this'} onPress={()=>void finish()}/>
  </View>;
  return <View style={{gap:13}}>
+  {pendingFeedback?<Panel tint={colors.warm}>
+   <Text style={st.label}>QUICK REFLECTION</Text>
+   <Text style={st.title}>How did your recent activity feel?</Text>
+   <Text style={st.sub}>{pendingFeedback.activity_id.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())} · {readableDay(pendingFeedback.day)}</Text>
+   <Text style={st.label}>MOOD AFTER ACTIVITY · OPTIONAL</Text>
+   <View style={st.row}>{([1,2,3,4,5] as MoodScore[]).map(v=>
+    <Choose key={v} text={String(v)} selected={moodAfter[pendingFeedback.id]===v}
+      onPress={()=>setMoodAfter(old=>({...old,[pendingFeedback.id]:v}))}/>)}</View>
+   <View style={st.row}>
+    <Choose text="👍 Helpful" selected={false} onPress={()=>void feedback(pendingFeedback,true)}/>
+    <Choose text="👎 Not helpful" selected={false} onPress={()=>void feedback(pendingFeedback,false)}/>
+   </View>
+   <Text style={st.sub}>Your private rating gently adjusts future local ranking. It is not a clinical effectiveness score.</Text>
+  </Panel>:null}
   <Panel tint={colors.soft}><Text style={st.label}>A PLAN BASED ON YOU</Text>
    <Text style={st.title}>Choose a focus</Text>
    <View style={st.row}>{(['balance','calm','sleep','energy','connection'] as Focus[]).map(f=>
@@ -95,18 +118,27 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
       onPress={()=>onSituationChange(option.id)}/>)}</View>
    <Text style={st.sub}>{SITUATIONS.find(option=>option.id===situation)?.description}</Text>
   </Panel>
-  <Heading>{showAll?'Activity library':'Three suggestions for right now'}</Heading>
-  {items.map((item,i)=><Panel key={item.id}>
+  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+   <Heading>{showFavorites?'Saved favourites':showAll?'Activity library':'Three suggestions for right now'}</Heading>
+   <View style={st.row}>
+    <Choose text={'★ Favourites '+favorites.size} selected={showFavorites} onPress={()=>setShowFavorites(v=>!v)}/>
+    <Choose text={showAll?'Top 3':'All activities'} selected={showAll} onPress={()=>setShowAll(v=>!v)}/>
+   </View>
+  </View>
+  {items.length?items.map((item,i)=><Panel key={item.id}>
    <View style={{flexDirection:'row',gap:13,alignItems:'flex-start'}}>
     <Text style={{fontWeight:'900',fontSize:27,color:colors.main}}>{String(i+1).padStart(2,'0')}</Text>
     <View style={{flex:1,gap:6}}><Text style={st.title}>{item.title}</Text>
      <Text style={st.sub}>{item.minutes} min · {item.difficulty} · {item.category}</Text></View>
+    <Pressable accessibilityRole="button" accessibilityState={{selected:favorites.has(item.id)}} accessibilityLabel={(favorites.has(item.id)?'Remove ':'Save ')+item.title+' favourite'}
+      onPress={()=>toggleFavorite(item.id)} style={{minWidth:48,minHeight:48,borderRadius:14,borderWidth:1,borderColor:colors.line,alignItems:'center',justifyContent:'center',backgroundColor:favorites.has(item.id)?colors.warm:colors.white}}>
+      <Text style={{fontSize:22,color:favorites.has(item.id)?'#9A692E':colors.sub}}>{favorites.has(item.id)?'★':'☆'}</Text>
+    </Pressable>
    </View>
    <Text style={st.body}>{item.reason}</Text>
    <Text style={st.sub}>{item.evidence}</Text>
    <Action text="See guided steps →" onPress={()=>select(item)}/>
-  </Panel>)}
-  <Action text={showAll?'Show only my top three':'Browse all activities'} onPress={()=>setShowAll(v=>!v)}/>
+  </Panel>):<Panel tint={colors.warm}><Text style={st.title}>No favourites yet</Text><Text style={st.body}>Save activities with the star button. Favourites are encrypted with your preferences and can gently influence future local ranking.</Text></Panel>}
   <Heading>What your feedback is teaching the app</Heading>
   {outcomes.length?outcomes.slice(0,3).map(x=><Panel key={'outcome-'+x.id} tint={colors.soft}>
    <Text style={st.title}>{x.id.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase())}</Text>

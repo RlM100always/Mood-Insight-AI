@@ -49,3 +49,12 @@ test('next-step suggestions respond to recent stress, sleep and personal helpful
  const helped={id:'s1',activity_id:'moneytriage',day:'2026-10-21',created_at:Date.now(),helpful:1,duration_seconds:180,mood_before:3,mood_after:4};
  assert.equal(suggestedNextStep([{...entry('2026-10-22',4),stress:2}], [helped], now).situation,'money');
 });
+
+test('favourite activities receive a real local ranking boost',()=>{
+ const logs=[entry('2026-10-22',3)];
+ const base=recommendationPlan(logs,[],{...DEFAULT_PREFERENCES,focus:'balance',favorite_activity_ids:''},'general',true,new Date(2026,9,22,12));
+ const fav=recommendationPlan(logs,[],{...DEFAULT_PREFERENCES,focus:'balance',favorite_activity_ids:'walk'},'general',true,new Date(2026,9,22,12));
+ const baseWalk=base.findIndex(x=>x.id==='walk'),favWalk=fav.findIndex(x=>x.id==='walk');
+ assert.ok(favWalk<=baseWalk);
+ assert.match(fav.find(x=>x.id==='walk').reason,/favourite/);
+});

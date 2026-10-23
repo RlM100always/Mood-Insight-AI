@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import base64
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
 import re
 import secrets
 import sqlite3
+import struct
+import time
 from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -34,6 +39,10 @@ FLAG_META = {
     "announcements_enabled": ("Communication", "Expose active admin announcements to connected clients."),
 }
 DASHBOARD_PATH = Path(__file__).with_name("admin_dashboard.html")
+DASHBOARD_CSS_PATH = Path(__file__).with_name("admin_dashboard.css")
+DASHBOARD_JS_PATH = Path(__file__).with_name("admin_dashboard.js")
+RULE_TYPES = {"always","stress_gte","sleep_lt","movement_lt","mood_lte","energy_lte","sleep_quality_lte"}
+CATEGORIES = {"balance","calm","sleep","energy","connection"}
 
 
 def register_admin_routes(
@@ -41,7 +50,9 @@ def register_admin_routes(
     connect: Callable,
     admin_signer,
     admin_password: str,
+    admin_totp_secret: str,
     auth_rate_limit: Callable,
+    clear_auth_rate_limit: Callable,
 ) -> None:
     def audit(action: str, target: str = "", detail: str = "") -> None:
         with connect() as db:
@@ -60,6 +71,38 @@ def register_admin_routes(
         except (TypeError, ValueError, json.JSONDecodeError):
             return default
 
+    def verify_totp(code: str) -> bool:
+        if not admin_totp_secret:
+            return True
+        if not isinstance(code, str) or not re.fullmatch(r"\d{6}", code):
+            return False
+        try:
+            normalized = admin_totp_secret.strip().replace(" ", "").upper()
+            padding = "=" * ((8 - len(normalized) % 8) % 8)
+            key = base64.b32decode(normalized + padding, casefold=True)
+        except (ValueError, TypeError, base64.binascii.Error):
+            return False
+        counter = int(time.time() // 30)
+        for drift in (-1, 0, 1):
+            digest = hmac.new(key, struct.pack(">Q", counter + drift), hashlib.sha1).digest()
+            offset = digest[-1] & 0x0F
+            binary = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+            expected = str(binary % 1000000).zfill(6)
+            if secrets.compare_digest(expected, code):
+                return True
+        return False
+
+    def create_admin_session() -> tuple[str, int]:
+        sid = secrets.token_hex(24)
+        now = int(time.time())
+        ttl = int(app.config.get("ADMIN_TOKEN_TTL", 1800))
+        with connect() as db:
+            db.execute("DELETE FROM admin_sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)", (now - 86400, now - 604800))
+            db.execute(
+                "INSERT INTO admin_sessions(id,created_at,expires_at,revoked_at,last_seen_at) VALUES (?,?,?,?,?)",
+                (sid, now, now + ttl, None, now),
+            )
+        return sid, ttl
     def admin_bearer(func):
         @wraps(func)
         def wrapped(*args, **kwargs):
@@ -70,11 +113,21 @@ def register_admin_routes(
                 payload = admin_signer.loads(
                     auth[7:], max_age=int(app.config.get("ADMIN_TOKEN_TTL", 1800))
                 )
-                if payload.get("role") != "admin":
-                    raise BadSignature("wrong role")
+                if payload.get("role") != "admin" or not isinstance(payload.get("sid"), str):
+                    raise BadSignature("wrong role or session")
             except (BadSignature, SignatureExpired, TypeError, AttributeError):
                 return jsonify(error="Invalid or expired admin token"), 401
+            now = int(time.time())
+            with connect() as db:
+                session = db.execute(
+                    "SELECT id,expires_at,revoked_at FROM admin_sessions WHERE id=?",
+                    (payload["sid"],),
+                ).fetchone()
+                if session is None or session["revoked_at"] is not None or int(session["expires_at"]) <= now:
+                    return jsonify(error="Admin session is revoked or expired"), 401
+                db.execute("UPDATE admin_sessions SET last_seen_at=? WHERE id=?", (now, payload["sid"]))
             g.admin = True
+            g.admin_session_id = payload["sid"]
             return func(*args, **kwargs)
         return wrapped
 
@@ -123,6 +176,18 @@ def register_admin_routes(
             return Response("Admin dashboard asset missing.", status=500, mimetype="text/plain")
         return Response(DASHBOARD_PATH.read_text(encoding="utf8"), mimetype="text/html")
 
+    @app.get("/admin/assets/admin.css")
+    def admin_css():
+        if not DASHBOARD_CSS_PATH.exists():
+            return Response("/* admin css missing */", status=500, mimetype="text/css")
+        return Response(DASHBOARD_CSS_PATH.read_text(encoding="utf8"), mimetype="text/css")
+
+    @app.get("/admin/assets/admin.js")
+    def admin_js():
+        if not DASHBOARD_JS_PATH.exists():
+            return Response("throw new Error('admin js missing');", status=500, mimetype="application/javascript")
+        return Response(DASHBOARD_JS_PATH.read_text(encoding="utf8"), mimetype="application/javascript")
+
     @app.post("/admin/login")
     @auth_rate_limit("admin-login")
     def admin_login():
@@ -130,13 +195,71 @@ def register_admin_routes(
             return jsonify(error="Admin access is not configured on this server."), 503
         value = request.get_json(silent=True)
         supplied = value.get("password") if isinstance(value, dict) else None
+        totp = value.get("totp", "") if isinstance(value, dict) else ""
         if not isinstance(supplied, str) or not secrets.compare_digest(supplied, admin_password):
+            audit("admin_login_failed", "", "password")
             return jsonify(error="Invalid admin credentials"), 401
-        audit("admin_login")
+        if not verify_totp(totp):
+            audit("admin_login_failed", "", "totp")
+            return jsonify(error="Invalid administrator verification code"), 401
+        sid, ttl = create_admin_session()
+        clear_auth_rate_limit("admin-login")
+        audit("admin_login", sid[:12], "mfa" if admin_totp_secret else "password-only")
         return jsonify(
-            token=admin_signer.dumps({"role": "admin"}),
-            expires_in_seconds=int(app.config.get("ADMIN_TOKEN_TTL", 1800)),
+            token=admin_signer.dumps({"role": "admin", "sid": sid}),
+            expires_in_seconds=ttl,
+            mfa_required=bool(admin_totp_secret),
         )
+
+    @app.post("/admin/logout")
+    @admin_bearer
+    def admin_logout():
+        now = int(time.time())
+        with connect() as db:
+            db.execute("UPDATE admin_sessions SET revoked_at=? WHERE id=?", (now, g.admin_session_id))
+        audit("admin_logout", g.admin_session_id[:12])
+        return jsonify(status="logged_out")
+
+    @app.get("/admin/api/session")
+    @admin_bearer
+    def admin_session():
+        with connect() as db:
+            row = db.execute(
+                "SELECT id,created_at,expires_at,last_seen_at FROM admin_sessions WHERE id=?",
+                (g.admin_session_id,),
+            ).fetchone()
+        return jsonify(
+            session=dict(row) if row else None,
+            mfa_configured=bool(admin_totp_secret),
+            password_configured=bool(admin_password),
+        )
+
+    @app.get("/admin/api/sessions")
+    @admin_bearer
+    def admin_sessions():
+        now = int(time.time())
+        with connect() as db:
+            rows = db.execute(
+                """SELECT id,created_at,expires_at,last_seen_at,
+                   CASE WHEN revoked_at IS NULL AND expires_at>? THEN 1 ELSE 0 END active
+                   FROM admin_sessions ORDER BY created_at DESC LIMIT 50""",
+                (now,),
+            ).fetchall()
+        return jsonify(sessions=[{**dict(row), "current": row["id"] == g.admin_session_id} for row in rows])
+
+    @app.post("/admin/api/sessions/<session_id>/revoke")
+    @admin_bearer
+    def admin_revoke_session(session_id: str):
+        now = int(time.time())
+        with connect() as db:
+            changed = db.execute(
+                "UPDATE admin_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL",
+                (now, session_id),
+            ).rowcount
+        if not changed:
+            return jsonify(error="Active admin session not found"), 404
+        audit("admin_session_revoked", session_id[:12])
+        return jsonify(status="revoked", session_id=session_id)
 
     @app.get("/admin/api/summary")
     @admin_bearer
@@ -500,57 +623,82 @@ def register_admin_routes(
     def admin_activities():
         with connect() as db:
             rows = db.execute(
-                """SELECT id,title,minutes,difficulty,enabled,priority,updated_at
+                """SELECT id,title,minutes,difficulty,enabled,priority,updated_at,
+                   category,rule_type,threshold,reason
                    FROM activity_catalog ORDER BY priority DESC,id"""
             ).fetchall()
-        return jsonify(activities=[dict(row) for row in rows])
+        return jsonify(activities=[dict(row) for row in rows], rule_types=sorted(RULE_TYPES), categories=sorted(CATEGORIES))
+
+    def validate_activity_payload(value, activity_id: str | None = None):
+        if not isinstance(value, dict):
+            return None, "Expected JSON object"
+        title=value.get("title");minutes=value.get("minutes");difficulty=value.get("difficulty")
+        enabled=value.get("enabled");priority=value.get("priority");category=value.get("category")
+        rule_type=value.get("rule_type");threshold=value.get("threshold");reason=value.get("reason")
+        if activity_id is not None and not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            return None, "Invalid activity id"
+        if not isinstance(title,str) or not 1<=len(title.strip())<=100: return None, "Title must be 1–100 characters"
+        if isinstance(minutes,bool) or not isinstance(minutes,int) or not 1<=minutes<=120: return None, "Minutes must be 1–120"
+        if difficulty not in {"Easy","Moderate"}: return None, "Difficulty must be Easy or Moderate"
+        if type(enabled) is not bool: return None, "enabled must be boolean"
+        if isinstance(priority,bool) or not isinstance(priority,int) or not -10<=priority<=10: return None, "Priority must be -10 to 10"
+        if category not in CATEGORIES: return None, "Unknown category"
+        if rule_type not in RULE_TYPES: return None, "Unknown rule type"
+        if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not -100<=float(threshold)<=100: return None, "Threshold must be numeric"
+        if not isinstance(reason,str) or not 1<=len(reason.strip())<=300: return None, "Reason must be 1–300 characters"
+        return dict(title=title.strip(),minutes=minutes,difficulty=difficulty,enabled=enabled,priority=priority,
+                    category=category,rule_type=rule_type,threshold=float(threshold),reason=reason.strip()), None
+
+    @app.post("/admin/api/activities")
+    @admin_bearer
+    def admin_activity_create():
+        value=request.get_json(silent=True)
+        activity_id=value.get("id") if isinstance(value,dict) else None
+        if not isinstance(activity_id,str) or not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            return jsonify(error="Activity id must start with a letter and use lowercase letters, numbers or underscores"),400
+        payload,error=validate_activity_payload(value,activity_id)
+        if error:
+            return jsonify(error=error),400
+        with connect() as db:
+            try:
+                db.execute("""INSERT INTO activity_catalog
+                    (id,title,minutes,difficulty,enabled,priority,category,rule_type,threshold,reason,updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))""",
+                    (activity_id,payload["title"],payload["minutes"],payload["difficulty"],int(payload["enabled"]),
+                     payload["priority"],payload["category"],payload["rule_type"],payload["threshold"],payload["reason"]))
+            except sqlite3.IntegrityError:
+                return jsonify(error="Activity id already exists"),409
+        audit("activity_catalog_created",activity_id,json.dumps(payload,sort_keys=True))
+        return jsonify(status="created",activity_id=activity_id),201
 
     @app.put("/admin/api/activities/<activity_id>")
     @admin_bearer
     def admin_activity_update(activity_id: str):
-        if not _ACTIVITY_ID_RE.fullmatch(activity_id):
-            return jsonify(error="Invalid activity id"), 400
-        value = request.get_json(silent=True)
-        if not isinstance(value, dict):
-            return jsonify(error="Expected JSON object"), 400
-        title = value.get("title")
-        minutes = value.get("minutes")
-        difficulty = value.get("difficulty")
-        enabled = value.get("enabled")
-        priority = value.get("priority")
-        if not isinstance(title, str) or not (1 <= len(title.strip()) <= 100):
-            return jsonify(error="Title must be 1–100 characters"), 400
-        if isinstance(minutes, bool) or not isinstance(minutes, int) or not 1 <= minutes <= 120:
-            return jsonify(error="Minutes must be an integer from 1 to 120"), 400
-        if difficulty not in {"Easy", "Moderate"}:
-            return jsonify(error="Difficulty must be Easy or Moderate"), 400
-        if type(enabled) is not bool:
-            return jsonify(error="enabled must be boolean"), 400
-        if isinstance(priority, bool) or not isinstance(priority, int) or not -10 <= priority <= 10:
-            return jsonify(error="Priority must be an integer from -10 to 10"), 400
+        payload,error=validate_activity_payload(request.get_json(silent=True),activity_id)
+        if error:
+            return jsonify(error=error),400
         with connect() as db:
-            changed = db.execute(
-                """UPDATE activity_catalog
-                   SET title=?,minutes=?,difficulty=?,enabled=?,priority=?,updated_at=datetime('now')
-                   WHERE id=?""",
-                (title.strip(), minutes, difficulty, int(enabled), priority, activity_id),
-            ).rowcount
-        if not changed:
-            return jsonify(error="Activity not found"), 404
-        audit(
-            "activity_catalog_updated",
-            activity_id,
-            json.dumps(
-                {
-                    "title": title.strip(),
-                    "minutes": minutes,
-                    "difficulty": difficulty,
-                    "enabled": enabled,
-                    "priority": priority,
-                }
-            ),
-        )
-        return jsonify(status="saved", activity_id=activity_id)
+            changed=db.execute("""UPDATE activity_catalog SET title=?,minutes=?,difficulty=?,enabled=?,
+                priority=?,category=?,rule_type=?,threshold=?,reason=?,updated_at=datetime('now') WHERE id=?""",
+                (payload["title"],payload["minutes"],payload["difficulty"],int(payload["enabled"]),payload["priority"],
+                 payload["category"],payload["rule_type"],payload["threshold"],payload["reason"],activity_id)).rowcount
+        if not changed:return jsonify(error="Activity not found"),404
+        audit("activity_catalog_updated",activity_id,json.dumps(payload,sort_keys=True))
+        return jsonify(status="saved",activity_id=activity_id)
+
+    @app.delete("/admin/api/activities/<activity_id>")
+    @admin_bearer
+    def admin_activity_delete(activity_id: str):
+        if not _ACTIVITY_ID_RE.fullmatch(activity_id):
+            return jsonify(error="Invalid activity id"),400
+        with connect() as db:
+            in_use=int(db.execute("SELECT COUNT(*) FROM activity_logs WHERE activity_id=?",(activity_id,)).fetchone()[0] or 0)
+            if in_use:
+                return jsonify(error="Activity has usage history; disable it instead of deleting it."),409
+            changed=db.execute("DELETE FROM activity_catalog WHERE id=?",(activity_id,)).rowcount
+        if not changed:return jsonify(error="Activity not found"),404
+        audit("activity_catalog_deleted",activity_id)
+        return jsonify(status="deleted",activity_id=activity_id)
 
     @app.get("/admin/api/announcements")
     @admin_bearer
@@ -631,6 +779,68 @@ def register_admin_routes(
         audit("announcement_deleted", item_id)
         return jsonify(status="deleted", id=item_id)
 
+    @app.get("/admin/api/funnel")
+    @admin_bearer
+    def admin_funnel():
+        with connect() as db:
+            total=int(db.execute("SELECT COUNT(*) FROM users").fetchone()[0] or 0)
+            checkin=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM mood_logs").fetchone()[0] or 0)
+            activity=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM activity_logs").fetchone()[0] or 0)
+            rated=int(db.execute("SELECT COUNT(DISTINCT user_id) FROM activity_logs WHERE helpful IS NOT NULL").fetchone()[0] or 0)
+        def rate(value): return value/total if total else None
+        return jsonify(stages=[
+            {"id":"registered","label":"Registered","users":total,"rate":1.0 if total else None},
+            {"id":"checkin","label":"Saved a mood log","users":checkin,"rate":rate(checkin)},
+            {"id":"activity","label":"Logged an activity","users":activity,"rate":rate(activity)},
+            {"id":"rated","label":"Rated an activity","users":rated,"rate":rate(rated)},
+        ])
+
+    @app.get("/admin/api/cohorts")
+    @admin_bearer
+    def admin_cohorts():
+        try:
+            weeks=min(16,max(4,int(request.args.get("weeks","8"))))
+        except ValueError:
+            return jsonify(error="weeks must be an integer"),400
+        cutoff=(date.today()-timedelta(days=weeks*7-1)).isoformat()
+        with connect() as db:
+            rows=db.execute("""WITH first_event AS (
+                    SELECT user_id,MIN(day) first_day FROM (
+                      SELECT user_id,day FROM mood_logs
+                      UNION ALL SELECT user_id,day FROM activity_logs
+                    ) GROUP BY user_id
+                )
+                SELECT strftime('%Y-%W',u.created_at) cohort,
+                       MIN(substr(u.created_at,1,10)) cohort_start,
+                       COUNT(*) users,
+                       SUM(CASE WHEN f.first_day IS NOT NULL
+                            AND julianday(f.first_day)-julianday(substr(u.created_at,1,10)) BETWEEN 0 AND 7
+                           THEN 1 ELSE 0 END) activated_7d
+                FROM users u LEFT JOIN first_event f ON f.user_id=u.id
+                WHERE substr(u.created_at,1,10)>=?
+                GROUP BY strftime('%Y-%W',u.created_at)
+                ORDER BY cohort_start""",(cutoff,)).fetchall()
+        return jsonify(cohorts=[{**dict(row),"activation_rate":(row["activated_7d"]/row["users"] if row["users"] else None)} for row in rows])
+
+    @app.get("/admin/api/retention")
+    @admin_bearer
+    def admin_retention():
+        cutoff=(date.today()-timedelta(days=365)).isoformat()
+        with connect() as db:
+            mood=int(db.execute("SELECT COUNT(*) FROM mood_logs WHERE day<?",(cutoff,)).fetchone()[0] or 0)
+            activity=int(db.execute("SELECT COUNT(*) FROM activity_logs WHERE day<?",(cutoff,)).fetchone()[0] or 0)
+        return jsonify(retention_days=365,cutoff=cutoff,expired_mood_logs=mood,expired_activity_logs=activity)
+
+    @app.post("/admin/api/retention/purge")
+    @admin_bearer
+    def admin_retention_purge():
+        cutoff=(date.today()-timedelta(days=365)).isoformat()
+        with connect() as db:
+            mood=db.execute("DELETE FROM mood_logs WHERE day<?",(cutoff,)).rowcount
+            activity=db.execute("DELETE FROM activity_logs WHERE day<?",(cutoff,)).rowcount
+        audit("retention_purge","",json.dumps({"mood_logs":mood,"activity_logs":activity,"cutoff":cutoff}))
+        return jsonify(status="purged",cutoff=cutoff,mood_logs=mood,activity_logs=activity)
+
     @app.get("/admin/api/system")
     @admin_bearer
     def admin_system():
@@ -647,14 +857,21 @@ def register_admin_routes(
                 for row in db.execute(
                     """SELECT name FROM sqlite_master
                        WHERE type='table' AND name IN
-                       ('users','mood_logs','activity_logs','announcements','admin_audit','activity_catalog')"""
+                       ('users','mood_logs','activity_logs','announcements','admin_audit','activity_catalog','admin_sessions')"""
                 ).fetchall()
             }
             integrity = db.execute("PRAGMA quick_check").fetchone()[0]
+            now = int(time.time())
+            active_sessions = int(db.execute(
+                "SELECT COUNT(*) FROM admin_sessions WHERE revoked_at IS NULL AND expires_at>?",
+                (now,),
+            ).fetchone()[0] or 0)
         return jsonify(
             service="Mood Insight optional Flask backend",
             admin_configured=bool(admin_password),
+            admin_mfa_configured=bool(admin_totp_secret),
             admin_token_ttl_seconds=int(app.config.get("ADMIN_TOKEN_TTL", 1800)),
+            active_admin_sessions=active_sessions,
             max_request_bytes=int(app.config.get("MAX_CONTENT_LENGTH", 0)),
             retention_days=365,
             database_bytes=db_bytes,

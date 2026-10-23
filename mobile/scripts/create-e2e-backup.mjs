@@ -26,7 +26,7 @@ const payload={
   id:'e2e-restore-session',activity_id:'walk',day:yesterday,
   created_at:now-86_400_000,helpful:1,duration_seconds:120,mood_before:3,mood_after:4
  }],
- preferences:{focus:'calm',max_minutes:5,weekly_checkins:4,weekly_activities:3}
+ preferences:{focus:'calm',max_minutes:5,weekly_checkins:4,weekly_activities:3,favorite_activity_ids:'walk'}
 };
 const passphrase='MoodInsightE2EBackupPassphrase2026';
 const encrypted=await encryptBackup(payload,passphrase);

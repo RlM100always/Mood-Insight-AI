@@ -37,10 +37,23 @@ test('tab navigation resets the shared content scroll position',()=>{
   assert.ok(app.includes('onPress={()=>navigateTab(n.label)}'));
 });
 
+test('backup export reports encrypted file creation before awaiting the external share sheet',()=>{
+  const ui=readFileSync(new URL('../src/ui/BackupRestore.tsx',import.meta.url),'utf8');
+  const prepared=ui.indexOf("setStatus('Encrypted backup prepared.");
+  const share=ui.indexOf('await Sharing.shareAsync');
+  assert.ok(prepared>=0);
+  assert.ok(share>prepared);
+  assert.ok(ui.includes("setPassphrase('');setConfirm('');setBusy(false)"));
+});
+
 test('Android smoke exercises encrypted backup export, restore and failure cases',()=>{
   const script=readFileSync(new URL('../scripts/android-smoke.sh',import.meta.url),'utf8');
   const fixture=readFileSync(new URL('../scripts/create-e2e-backup.mjs',import.meta.url),'utf8');
   assert.ok(script.includes('PASS: encrypted backup export completed through the native share sheet'));
+  assert.ok(script.includes('return_from_share_sheet'));
+  assert.ok(script.includes("grep -Fq \"$PACKAGE\""));
+  assert.ok(script.includes("mResumedActivity"));
+  assert.ok(script.includes("mCurrentFocus|mFocusedApp"));
   assert.ok(script.includes('WrongPasswordForE2E2026'));
   assert.ok(script.includes('mood-insight-e2e-backup-tampered.mibak'));
   assert.ok(script.includes('E2E_SHOULD_NOT_OVERWRITE_LOCAL_ENTRY'));

@@ -1,4 +1,5 @@
 import type {EntryInput, MoodScore} from './types';
+import {normalizeContextTags} from './context.ts';
 
 export type CheckinDraft = {
   day:string;
@@ -32,10 +33,11 @@ export function buildEntryInput(draft:CheckinDraft):EntryInput {
   const stress=optionalScore(draft.stress);
   const energy=optionalScore(draft.energy);
   const quality=optionalScore(draft.sleepQuality);
+  const tags=normalizeContextTags(draft.tags);
   return {
     day:draft.day,mood:draft.mood,sleep_hours:sleep.value,exercise_min:exercise.value,
     stress:stress.value,energy:energy.value,sleep_quality:quality.value,
-    context_tags:draft.tags.join(','),note:draft.note.trim(),
+    context_tags:tags.join(','),note:draft.note.trim(),
     sleep_recorded:sleep.recorded,exercise_recorded:exercise.recorded,
     stress_recorded:stress.recorded,energy_recorded:energy.recorded,
     sleep_quality_recorded:quality.recorded

@@ -37,10 +37,14 @@ Required server environment values:
 export MOOD_API_AES_KEY="<64 hex characters>"
 export MOOD_API_SECRET="<32+ character random secret>"
 export MOOD_ADMIN_PASSWORD="<16+ character separate admin password>"
+# Optional but recommended for a real admin deployment: base32 TOTP secret.
+export MOOD_ADMIN_TOTP_SECRET="<base32 TOTP secret>"
 python -m backend.app
 ```
 
-The admin surface is now a full responsive operations console with Overview, Users, Engagement, Recommendations, Announcements, System & Controls, and Audit sections. It includes 30/90-day operational charts, user ID search/filter/sort, metadata-only user drill-downs, activity usage and feedback aggregates, recommendation-catalog editing, audited feature controls, expiring/severity-tagged announcements, system/database diagnostics, and metadata-only CSV export.
+The admin surface is a responsive operations console with Overview, Users, Engagement, Recommendations, Announcements, System & Controls, Security, and Audit sections. It includes operational charts, activation funnels/cohorts, user ID search/filter/sort, metadata-only user drill-downs, activity usage/feedback aggregates, a constrained declarative recommendation-rule CMS, audited feature controls, expiring/severity-tagged announcements, retention preview/purge, system/database diagnostics, metadata-only CSV export, and revocable administrator sessions.
+
+Admin authentication uses a separate password and an expiring signed bearer token that is additionally bound to a server-side session record. When `MOOD_ADMIN_TOTP_SECRET` is configured, a valid 6-digit TOTP code is required at login. Logout/revocation invalidates the server-side session even if a signed token still exists. Admin pages use external same-origin scripts with a Content Security Policy, frame denial, no-store, nosniff, referrer and permissions-policy headers. This development backend still needs reviewed production TLS, distributed rate limiting, secret rotation, monitoring and recovery design before internet exposure.
 
 The admin intentionally does **not** expose decrypted profile data, raw mood values, journal text, context tags, or data stored only in the mobile SQLCipher vault. Normal user bearer tokens cannot access admin APIs. Admin tokens expire and are held only in browser memory.
 

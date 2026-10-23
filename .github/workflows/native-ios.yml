@@ -1,7 +1,16 @@
 name: Native iOS simulator smoke
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/native-ios.yml'
+  pull_request:
     paths:
       - 'mobile/**'
       - '.github/workflows/native-ios.yml'

@@ -85,5 +85,23 @@ class IsolationAndValidationTests(unittest.TestCase):
         self.assertEqual(limited.status_code,429,limited.json)
         self.assertEqual(limited.headers.get("Retry-After"),"60")
 
+    def test_successful_login_resets_failure_counter(self):
+        limited_app=create_app({
+            "DB_PATH":str(Path(self.tmp.name)/"reset-limited.sqlite"),
+            "MASTER_KEY":secrets.token_hex(32),
+            "AUTH_SECRET":secrets.token_hex(32),
+            "TESTING":True,
+            "ENFORCE_RATE_LIMITS_IN_TESTS":True,
+            "AUTH_RATE_LIMIT_ATTEMPTS":2,
+            "AUTH_RATE_LIMIT_WINDOW_SECONDS":60,
+        })
+        client=limited_app.test_client()
+        created=client.post("/user",json={"name":"Reset","age":22,"password":"valid-password-for-reset"}).json
+        self.assertEqual(client.post("/login",json={"user_id":created["user_id"],"password":"wrong"}).status_code,401)
+        good=client.post("/login",json={"user_id":created["user_id"],"password":"valid-password-for-reset"})
+        self.assertEqual(good.status_code,200,good.json)
+        self.assertEqual(client.post("/login",json={"user_id":created["user_id"],"password":"wrong"}).status_code,401)
+        self.assertEqual(client.post("/login",json={"user_id":created["user_id"],"password":"valid-password-for-reset"}).status_code,200)
+
 if __name__=="__main__":
     unittest.main()

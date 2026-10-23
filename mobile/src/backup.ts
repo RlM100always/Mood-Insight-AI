@@ -5,7 +5,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex,hexToBytes,utf8ToBytes} from '@noble/hashes/utils.js';
 import type {Entry,Session} from './types';
 import type {Preferences} from './deep.ts';
-import {CONTEXT_TAGS} from './deep.ts';
+import {isValidContextCsv} from './context.ts';
 import {localDay} from './insights.ts';
 export type BackupPayload={schema:'mood-insight-backup';version:1;exported_at:string;entries:Entry[];sessions:Session[];preferences:Preferences};
 type Envelope={format:'mood-insight-encrypted-backup';version:1;cipher:'AES-256-GCM';kdf:'PBKDF2-SHA256';iterations:number;salt:string;nonce:string;ciphertext:string};
@@ -39,8 +39,7 @@ export function validateBackupPayload(value:unknown):BackupPayload{
   if(!e||typeof e!=='object'||typeof e.id!=='string'||e.id.length<1||e.id.length>128||!validDay(e.day)||e.day<cutoff||e.day>today||days.has(e.day)||ids.has(e.id)||
    !validScore(e.mood)||typeof e.sleep_hours!=='number'||!Number.isFinite(e.sleep_hours)||e.sleep_hours<0||e.sleep_hours>24||
    !Number.isInteger(e.exercise_min)||e.exercise_min<0||e.exercise_min>600||!validScore(e.stress)||!validScore(e.energy)||!validScore(e.sleep_quality)||
-   typeof e.note!=='string'||e.note.length>2000||typeof e.context_tags!=='string'||e.context_tags.length>250||
-   e.context_tags.split(',').some(t=>t.length>0&&!CONTEXT_TAGS.some(c=>c===t))||
+   typeof e.note!=='string'||e.note.length>2000||!isValidContextCsv(e.context_tags)||
    ![e.sleep_recorded,e.exercise_recorded,e.stress_recorded,e.energy_recorded,e.sleep_quality_recorded].every(v=>v===0||v===1)||
    !validTimestamp(e.created_at)||!validTimestamp(e.updated_at))return fail('Backup has an invalid or expired check-in. Nothing was restored.');
   days.add(e.day);ids.add(e.id);
@@ -54,9 +53,11 @@ export function validateBackupPayload(value:unknown):BackupPayload{
   sessionIds.add(s.id);
  }
  const pref=p.preferences as Preferences;
+ const favoriteIds=pref&&typeof pref.favorite_activity_ids==='string'?pref.favorite_activity_ids:'';
  if(!pref||!['balance','calm','sleep','energy','connection'].includes(pref.focus)||![5,10,15,20,30].includes(pref.max_minutes)||
-  !Number.isInteger(pref.weekly_checkins)||pref.weekly_checkins<1||pref.weekly_checkins>7||!Number.isInteger(pref.weekly_activities)||pref.weekly_activities<1||pref.weekly_activities>14)return fail('Backup preferences are invalid. Nothing was restored.');
- return p as BackupPayload;
+  !Number.isInteger(pref.weekly_checkins)||pref.weekly_checkins<1||pref.weekly_checkins>7||!Number.isInteger(pref.weekly_activities)||pref.weekly_activities<1||pref.weekly_activities>14||
+  favoriteIds.length>1000||favoriteIds.split(',').filter(Boolean).some(id=>!/^[a-z][a-z0-9_]{1,29}$/.test(id)))return fail('Backup preferences are invalid. Nothing was restored.');
+ return {...p,preferences:{...pref,favorite_activity_ids:favoriteIds}} as BackupPayload;
 }
 export async function encryptBackup(payload:BackupPayload,passphrase:string,random:(size:number)=>Uint8Array=randomBytes):Promise<string>{
  const valid=validateBackupPayload(payload);

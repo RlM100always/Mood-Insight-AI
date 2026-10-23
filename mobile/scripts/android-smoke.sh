@@ -52,9 +52,39 @@ if ! test -s "$apk"; then echo "APK artifact not found" >&2; exit 1; fi
 wait_for_device_ready
 test -s mobile/e2e-restore-fixture.mibak || { echo "Encrypted E2E restore fixture is missing" >&2; exit 1; }
 test -s mobile/e2e-restore-fixture-tampered.mibak || { echo "Encrypted E2E integrity fixture is missing" >&2; exit 1; }
-adb shell mkdir -p /sdcard/Download
-adb push mobile/e2e-restore-fixture.mibak /sdcard/Download/mood-insight-e2e-backup.mibak >> "$DIAG" 2>&1
-adb push mobile/e2e-restore-fixture-tampered.mibak /sdcard/Download/mood-insight-e2e-backup-tampered.mibak >> "$DIAG" 2>&1
+
+# android-emulator-runner can report sys.boot_completed before credential-encrypted
+# shared storage is ready. Do not misclassify that emulator race as an app failure.
+prepare_shared_downloads(){
+  local marker="/storage/emulated/0/Download/.mood-insight-ci-write-test"
+  for attempt in $(seq 1 30); do
+    adb shell input keyevent 82 >/dev/null 2>&1 || true
+    adb shell mkdir -p /storage/emulated/0/Download >> "$DIAG" 2>&1 || true
+    if adb shell "echo ready > '$marker'" >> "$DIAG" 2>&1; then
+      adb shell rm -f "$marker" >> "$DIAG" 2>&1 || true
+      echo "Shared Downloads storage is writable (attempt $attempt)." >> "$DIAG"
+      return 0
+    fi
+    echo "Waiting for writable shared Downloads storage ($attempt/30)" >> "$DIAG"
+    sleep 2
+  done
+  echo "Android shared Downloads storage never became writable." >&2
+  return 1
+}
+push_download_fixture(){
+  local source="$1" target="$2"
+  for attempt in 1 2 3 4 5; do
+    if adb push "$source" "$target" >> "$DIAG" 2>&1; then return 0; fi
+    echo "Retrying fixture push to shared Downloads ($attempt/5): $target" >> "$DIAG"
+    sleep 2
+  done
+  echo "Could not stage encrypted backup fixture in Android Downloads: $target" >&2
+  return 1
+}
+prepare_shared_downloads
+push_download_fixture mobile/e2e-restore-fixture.mibak /storage/emulated/0/Download/mood-insight-e2e-backup.mibak
+push_download_fixture mobile/e2e-restore-fixture-tampered.mibak /storage/emulated/0/Download/mood-insight-e2e-backup-tampered.mibak
+adb shell ls -l /storage/emulated/0/Download/mood-insight-e2e-backup*.mibak >> "$DIAG" 2>&1
 adb install -r "$apk"
 adb logcat -c || true
 adb shell input keyevent 82 || true
@@ -162,6 +192,39 @@ enter_backup_passphrase(){
   sleep 1
 }
 
+foreground_activity(){
+  local focus
+  focus=$(adb shell dumpsys activity activities 2>/dev/null | grep -m1 'mResumedActivity' || true)
+  if test -z "$focus"; then
+    focus=$(adb shell dumpsys window 2>/dev/null | grep -m1 -E 'mCurrentFocus|mFocusedApp' || true)
+  fi
+  printf '%s' "$focus"
+}
+
+return_from_share_sheet(){
+  local focus
+  for attempt in $(seq 1 8); do
+    focus=$(foreground_activity)
+    echo "Share-sheet foreground check $attempt: $focus" >> "$DIAG"
+    if echo "$focus" | grep -Fq "$PACKAGE"; then
+      return 0
+    fi
+    adb shell input keyevent 4 || true
+    sleep 1
+  done
+  adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x14000000 -n "$PACKAGE/.MainActivity" >> "$DIAG" 2>&1 || true
+  for attempt in $(seq 1 10); do
+    focus=$(foreground_activity)
+    echo "App foreground recovery $attempt: $focus" >> "$DIAG"
+    if echo "$focus" | grep -Fq "$PACKAGE"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Android share sheet did not return focus to the app." >&2
+  return 1
+}
+
 open_download_fixture(){
   local filename="$1"
   find_and_tap "Choose backup file to restore"
@@ -219,7 +282,7 @@ if grep -Fq 'No entries match' window.xml; then
 fi
 echo "PASS: journal navigation and saved entry rendered"
 
-find_and_tap "Edit"
+find_and_tap "Edit journal entry"
 wait_for_text "How are you feeling?"
 echo "PASS: previously saved check-in is editable"
 
@@ -252,16 +315,27 @@ find_and_tap "I completed or tried this"
 wait_for_text "Saved locally"
 find_and_tap "OK"
 echo "PASS: guided activity completion was stored"
+# Completion returns to the activity library. Re-select the tab to reset the
+# shared ScrollView to the top, where pending feedback is intentionally surfaced.
+find_and_tap "Activities tab"
+scroll_to_top
+wait_for_text "How did your recent activity feel?"
 find_and_tap "👍 Helpful"
 sleep 2
-echo "PASS: activity feedback control accepted a tap"
+echo "PASS: immediate activity feedback control accepted a tap"
 
-find_and_tap "Progress tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Progress & goals"
 scroll_to_top
 wait_for_text_while_scrolling "Your wellbeing journey"
-echo "PASS: Progress screen and activity goals rendered"
+echo "PASS: More hub and Progress screen rendered"
 
-find_and_tap "Privacy tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Privacy & data"
 scroll_to_top
 wait_for_text_while_scrolling "Your data. Your choice."
 find_and_tap "Check app features"
@@ -297,11 +371,23 @@ find_and_tap "Confirm backup passphrase"
 adb shell input text "$BACKUP_PASSPHRASE"
 adb shell input keyevent 4 || true
 find_and_tap "Export encrypted backup"
+sleep 4
+# expo-sharing opens Android's system ChooserActivity. Wait until that system UI
+# is genuinely dismissed before making app assertions; one BACK is not enough on
+# all emulator images because the chooser may first collapse its bottom sheet.
+return_from_share_sheet
 sleep 3
-adb shell input keyevent 4 || true
-sleep 3
+capture || true
+if ! grep -Fq 'Your data. Your choice.' window.xml; then
+  find_and_tap "More tab"
+  scroll_to_top
+  wait_for_text "More control, less clutter"
+  find_and_tap "Open Privacy & data"
+  scroll_to_top
+  wait_for_text_while_scrolling "Your data. Your choice."
+fi
 wait_for_text_while_scrolling "Encrypted backup prepared"
-echo "PASS: encrypted backup export completed through the native share sheet"
+echo "PASS: encrypted backup export completed through the native share sheet and returned to app"
 
 # Wrong passphrase must fail before a restore confirmation or any database change.
 enter_backup_passphrase "WrongPasswordForE2E2026"
@@ -330,7 +416,10 @@ wait_for_text_while_scrolling "E2E_RESTORED_ENTRY_CHECK"
 echo "PASS: restored journal record is readable after decrypting on-device"
 
 # Authenticated ciphertext corruption must be rejected without removing the restored record.
-find_and_tap "Privacy tab"
+find_and_tap "More tab"
+scroll_to_top
+wait_for_text "More control, less clutter"
+find_and_tap "Open Privacy & data"
 scroll_to_top
 wait_for_text_while_scrolling "Your data. Your choice."
 enter_backup_passphrase "$BACKUP_PASSPHRASE"

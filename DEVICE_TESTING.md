@@ -10,7 +10,7 @@ Emulator and simulator checks are useful automated gates, but they are **not phy
 4. Open the app, accept the privacy notice, and confirm the encrypted local vault initialises without an account.
 5. Save a mood-only entry, force-stop/reopen the app, and confirm the entry persists. Edit it, search for it, and delete a disposable test entry.
 6. Record an entry with optional sleep/movement/stress values, then another with some fields skipped. Confirm skipped measurements remain “not logged” and are not silently treated as zero or average.
-7. Complete a guided activity, submit feedback, restart the app, and confirm history and progress persist.
+7. Complete a guided activity, submit feedback, restart the app, and confirm history and progress persist. Verify Progress and Privacy/Data are reachable through the More tab.
 8. Export an encrypted backup using a strong passphrase; confirm the file does not expose readable journal text. Restore to a clean test installation. Verify that wrong-passphrase and modified-backup attempts fail without changing local records.
 9. Verify same-day backup merge behaviour, then test erase-all-data and confirm the consent/onboarding flow returns.
 10. Repeat the core save, journal, activity and backup checks in airplane mode.

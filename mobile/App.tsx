@@ -10,7 +10,7 @@ import {
   hasConsent, acceptConsent, openVault, listEntries, saveEntry, removeEntry,
   listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences, checkVaultHealth
 } from './src/data/vault';
-import {currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
+import {currentStreak, localDay, recommend} from './src/insights';
 import {windowSummary} from './src/advanced';
 import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
 import {buildEntryInput} from './src/checkin';
@@ -28,11 +28,11 @@ const C = {
   primary: '#325C57', teal: '#D8EDE5', peach: '#FBE6DA',
   lilac: '#EAE3F8', line: '#E6EAE8', grey: '#F0F3F2', red: '#AA4B45'
 };
-type Tab = 'Today' | 'Patterns' | 'Activities' | 'Journal' | 'Progress' | 'Privacy';
-const NAV: {label: Tab; icon: string}[] = [
-  {label: 'Today',icon: '◉'}, {label: 'Patterns',icon: '▥'},
+type Tab = 'Today' | 'Insights' | 'Activities' | 'Journal' | 'More' | 'Progress' | 'Privacy';
+const NAV: {label: Exclude<Tab,'Progress'|'Privacy'>; icon: string}[] = [
+  {label: 'Today',icon: '◉'}, {label: 'Insights',icon: '▥'},
   {label: 'Activities',icon: '✦'}, {label: 'Journal',icon: '▤'},
-  {label: 'Progress',icon: '◷'}, {label: 'Privacy',icon: '♧'}
+  {label: 'More',icon: '•••'}
 ];
 const MOODS: {mood: MoodScore; emoji: string; label: string}[] = [
   {mood: 1,emoji: '😞',label:'Very low'}, {mood: 2,emoji:'😕',label:'Low'},
@@ -201,7 +201,6 @@ export default function App() {
   };
   const activities = useMemo(()=>recommend(entries),[entries]);
   const nextStep = useMemo(()=>suggestedNextStep(entries,sessions),[entries,sessions]);
-  const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const weekSummary = useMemo(()=>windowSummary(entries,7),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
@@ -281,7 +280,7 @@ export default function App() {
               <Pressable accessibilityRole="button" accessibilityLabel={m.label}
                 accessibilityState={{selected:mood===m.mood}} key={m.mood}
                 onPress={()=>setMood(m.mood)} style={[s.mood,mood===m.mood && s.moodSelected]}>
-                <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={s.moodText}>{m.label}</Text>
+                <Text style={s.moodEmoji}>{m.emoji}</Text><Text style={[s.moodText,mood===m.mood&&s.moodTextSelected]}>{m.label}</Text>
               </Pressable>)}</View>
             <View style={s.twoCol}>
               <View style={{flex:1}}><Field label="Sleep last night (hrs) · optional" value={sleep} onChangeText={setSleep} keyboardType="numeric" placeholder="Skip if unsure"/></View>
@@ -310,7 +309,7 @@ export default function App() {
           </Card>
         </>:null}
 
-        {tab==='Patterns'?<>
+        {tab==='Insights'?<>
           <Heading kicker="Personal insights" title="A picture of your patterns" description="Only what your own entries can support."/>
           <Card tint={C.lilac}><Text style={s.kicker}>WHAT YOU'VE SHARED</Text>
             <Text style={s.heroSmall}>{entries.length} recorded days</Text>
@@ -342,13 +341,6 @@ export default function App() {
             </>}
             <Text style={s.footnote}>Australian statistics elsewhere in this app are population context, not individual-level training data. This personal model is not Australian-population-trained or clinically validated.</Text>
           </Card>
-          <Text style={s.h2}>Detected associations</Text>
-          {patterns.length?patterns.map((p,i)=><Card key={p.id} tint={i%2===0?C.teal:C.peach}>
-            <Text style={s.kicker}>{p.count} DAYS COMPARED</Text>
-            <Text style={s.h3}>{p.title}</Text><Text style={s.copy}>{p.detail}</Text>
-          </Card>):<Card><Text style={s.h3}>No dependable comparisons yet</Text>
-            <Text style={s.copy}>Try logging for a few more days. We will never invent statistics to fill empty charts.</Text>
-          </Card>}
           <InsightExplorer entries={entries} sessions={sessions}/>
           <Text style={s.footnote}>These are descriptive observations, not diagnoses, predictions, or evidence that one activity caused a mood change.</Text>
         </>:null}
@@ -362,12 +354,34 @@ export default function App() {
           <Heading kicker="Private journal" title="Your story, your words" description="Search context, notes and dates; edit or remove any entry."/>
           <JournalSearch entries={entries} onEdit={edit} onDelete={confirmRemove}/>
         </>:null}
+        {tab==='More'?<>
+          <Heading kicker="Settings & review" title="More control, less clutter" description="Progress, privacy and data tools live here so the main navigation stays focused."/>
+          <Card tint={C.teal}>
+            <Text style={s.kicker}>PROGRESS & GOALS</Text>
+            <Text style={s.h3}>Review your wellbeing journey</Text>
+            <Text style={s.copy}>See weekly goals, consistency, activity feedback and your own recorded progress without turning wellbeing into a score.</Text>
+            <Primary label="Open Progress & goals" action={()=>navigateTab('Progress')}/>
+          </Card>
+          <Card tint={C.lilac}>
+            <Text style={s.kicker}>PRIVACY & DATA</Text>
+            <Text style={s.h3}>Manage storage, backup and diagnostics</Text>
+            <Text style={s.copy}>Verify encrypted storage, export or restore a protected backup, inspect the optional backend bridge, and erase local records.</Text>
+            <Primary label="Open Privacy & data" action={()=>navigateTab('Privacy')}/>
+          </Card>
+          <Card>
+            <Text style={s.h3}>About this app</Text>
+            <Text style={s.copy}>Version {appConfig.expo.version} · local-first wellbeing support · no ad tracking or automatic cloud sync.</Text>
+            <Text style={s.footnote}>Personal insights are descriptive and experimental. They are not diagnosis, therapy, or emergency monitoring.</Text>
+          </Card>
+        </>:null}
         {tab==='Progress'?<>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={()=>navigateTab('More')} style={s.backLink}><Text style={s.backLinkText}>‹ More</Text></Pressable>
           <Heading kicker="A gentle progress space" title="Your wellbeing journey" description="Set realistic goals and reflect on your own participation."/>
           <ProgressExplorer entries={entries} sessions={sessions} preferences={preferences} onPreferences={persistPreferences}/>
         </>:null}
 
         {tab==='Privacy'?<>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={()=>navigateTab('More')} style={s.backLink}><Text style={s.backLinkText}>‹ More</Text></Pressable>
           <Heading kicker="Data control" title="Your data. Your choice." description="A simple privacy promise you can verify."/>
           <Card tint={C.teal}><Text style={s.h3}>Encrypted on your phone</Text>
             <Text style={s.copy}>Native SQLCipher SQLite encrypts entries using AES-256. Your randomly generated database key is held by platform SecureStore. No mood data is sent by default. The optional research bridge can send explicitly selected numerical check-ins only after you enable it and confirm consent; journal notes and context tags remain local.</Text>
@@ -397,32 +411,39 @@ export default function App() {
         <View style={{height:28}}/>
       </ScrollView>
     </KeyboardAvoidingView>
-    <View style={s.tabBar}>{NAV.map(n=><Pressable key={n.label}
-      accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
-      accessibilityState={{selected:tab===n.label}}
-      onPress={()=>navigateTab(n.label)} style={s.tabButton}>
-      <Text style={[s.navIcon,tab===n.label&&{color:C.primary}]}>{n.icon}</Text>
-      <Text style={[s.navText,tab===n.label&&s.navActive]}>{n.label}</Text>
-    </Pressable>)}</View>
+    <View style={s.tabBar}>{NAV.map(n=>{
+      const selected=tab===n.label||(n.label==='More'&&(tab==='Progress'||tab==='Privacy'));
+      return <Pressable key={n.label}
+        accessibilityLabel={n.label+' tab'} accessibilityRole="tab"
+        accessibilityState={{selected}}
+        onPress={()=>navigateTab(n.label)} style={[s.tabButton,selected&&s.tabButtonActive]}>
+        <Text style={[s.navIcon,selected&&{color:C.primary}]}>{n.icon}</Text>
+        <Text style={[s.navText,selected&&s.navActive]}>{n.label}</Text>
+      </Pressable>;
+    })}</View>
   </SafeAreaView>;
 }
 
 const s=StyleSheet.create({
   root:{flex:1,backgroundColor:C.bg,paddingTop:Platform.OS==='android'?NativeStatusBar.currentHeight||0:0},
   center:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:C.bg,gap:20},
-  topBar:{height:65,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
-    borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white},
+  topBar:{height:68,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
+    borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,shadowColor:'#173B37',
+    shadowOpacity:.05,shadowRadius:8,shadowOffset:{width:0,height:3},elevation:2},
   logo:{fontSize:20,fontWeight:'900',letterSpacing:-.7,color:C.primary},
   pill:{paddingHorizontal:10,paddingVertical:7,backgroundColor:'#E9F3EF',borderRadius:100},
   pillText:{color:C.primary,fontSize:9,fontWeight:'800',letterSpacing:.8},
   content:{padding:20,paddingBottom:30,gap:14},
   heading:{marginTop:5,marginBottom:4},
+  backLink:{alignSelf:'flex-start',minHeight:44,justifyContent:'center',paddingHorizontal:4,marginBottom:-4},
+  backLinkText:{fontSize:14,fontWeight:'900',color:C.primary},
   kicker:{color:C.primary,fontSize:10,fontWeight:'900',letterSpacing:1.6,marginBottom:8},
   h1:{fontSize:30,lineHeight:36,fontWeight:'900',color:C.ink,letterSpacing:-1.2,marginBottom:5},
   h2:{fontSize:20,fontWeight:'800',color:C.ink,marginTop:12,marginBottom:4},
   h3:{fontSize:17,fontWeight:'800',color:C.ink,marginBottom:5},
   subheading:{fontSize:14,lineHeight:22,color:C.muted},
-  card:{backgroundColor:C.white,borderRadius:23,padding:19,borderWidth:1,borderColor:'#EAEDEB',gap:8},
+  card:{backgroundColor:C.white,borderRadius:23,padding:19,borderWidth:1,borderColor:'#E5EAE7',gap:9,
+    shadowColor:'#173B37',shadowOpacity:.055,shadowRadius:13,shadowOffset:{width:0,height:5},elevation:2},
   hero:{fontSize:33,fontWeight:'900',color:C.ink,lineHeight:39,letterSpacing:-1.2,marginBottom:10},
   heroSmall:{fontSize:23,fontWeight:'800',color:C.ink},
   copy:{fontSize:14,lineHeight:22,color:C.muted,marginBottom:4},
@@ -432,16 +453,17 @@ const s=StyleSheet.create({
     paddingVertical:11,borderRadius:13,color:C.ink,fontSize:15,minHeight:48},
   multiline:{height:92,textAlignVertical:'top'},
   moodRow:{flexDirection:'row',gap:4,marginBottom:16},
-  mood:{flex:1,alignItems:'center',paddingVertical:9,paddingHorizontal:1,borderRadius:12,borderWidth:1,borderColor:'transparent'},
-  moodSelected:{backgroundColor:C.teal,borderColor:C.primary},
-  moodEmoji:{fontSize:26,marginBottom:5},
-  moodText:{fontSize:9,color:C.muted,fontWeight:'700',textAlign:'center'},
+  mood:{flex:1,minHeight:76,alignItems:'center',justifyContent:'center',paddingVertical:10,paddingHorizontal:2,borderRadius:14,borderWidth:1,borderColor:C.line,backgroundColor:C.white},
+  moodSelected:{backgroundColor:C.teal,borderColor:C.primary,borderWidth:2},
+  moodEmoji:{fontSize:27,marginBottom:5},
+  moodText:{fontSize:10,color:C.muted,fontWeight:'700',textAlign:'center'},
+  moodTextSelected:{color:C.primary,fontWeight:'900'},
   twoCol:{flexDirection:'row',gap:12},
   chipRow:{flexDirection:'row',gap:9,marginBottom:18},
-  chip:{width:44,height:41,borderWidth:1,borderColor:C.line,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:C.grey},
+  chip:{width:46,height:46,borderWidth:1,borderColor:C.line,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:C.grey},
   chipActive:{backgroundColor:C.primary,borderColor:C.primary},
   chipText:{fontSize:14,fontWeight:'800',color:C.ink},
-  primary:{backgroundColor:C.primary,borderRadius:13,alignItems:'center',paddingVertical:16,marginTop:5},
+  primary:{minHeight:52,backgroundColor:C.primary,borderRadius:14,alignItems:'center',justifyContent:'center',paddingHorizontal:16,paddingVertical:14,marginTop:5},
   primaryText:{fontSize:15,fontWeight:'800',color:C.white},
   footnote:{fontSize:11,lineHeight:18,color:C.muted,textAlign:'center',marginTop:8},
   statRow:{flexDirection:'row',justifyContent:'space-between',paddingTop:10},
@@ -468,13 +490,14 @@ const s=StyleSheet.create({
   danger:{borderWidth:1,borderColor:C.red,padding:13,borderRadius:12,marginTop:10,alignItems:'center'},
   dangerText:{fontWeight:'800',color:C.red},
   error:{color:C.red,fontWeight:'800',fontSize:14},
-  consent:{flexDirection:'row',gap:12,alignItems:'flex-start',paddingVertical:12},
+  consent:{minHeight:52,flexDirection:'row',gap:12,alignItems:'flex-start',paddingVertical:12},
   consentMark:{fontSize:25,color:C.primary},
   muted:{color:C.muted},
-  tabBar:{flexDirection:'row',paddingBottom:Platform.OS==='ios'?8:10,paddingTop:10,
-    paddingHorizontal:7,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
-  tabButton:{flex:1,alignItems:'center',justifyContent:'center',gap:3},
-  navIcon:{fontSize:21,color:'#94A29E',fontWeight:'800'},
-  navText:{fontSize:10,color:C.muted,fontWeight:'700'},
+  tabBar:{flexDirection:'row',paddingBottom:Platform.OS==='ios'?8:10,paddingTop:8,
+    paddingHorizontal:6,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
+  tabButton:{flex:1,minHeight:54,alignItems:'center',justifyContent:'center',gap:3,borderRadius:13,marginHorizontal:1},
+  tabButtonActive:{backgroundColor:'#EDF5F2'},
+  navIcon:{fontSize:20,color:'#94A29E',fontWeight:'800'},
+  navText:{fontSize:9.5,color:C.muted,fontWeight:'700',textAlign:'center'},
   navActive:{color:C.primary,fontWeight:'900'}
 });

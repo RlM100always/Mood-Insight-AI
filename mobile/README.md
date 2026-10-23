@@ -20,7 +20,7 @@ React Native + Expo custom native binary (not WebView/PWA).
 
 ## Architecture and verified Australian data
 
-The Patterns screen contains an **Australian research evidence** view built from ABS's published National Study of Mental Health and Wellbeing (2020–2022), with 7 age groups, male/female/all-person comparison, source link and methodological cautions.
+The Insights screen contains an **Australian research evidence** view built from ABS's published National Study of Mental Health and Wellbeing (2020–2022), with 7 age groups, male/female/all-person comparison, source link and methodological cautions.
 
 The Privacy screen includes an **optional HTTPS Flask API bridge**: health/model-info checks, user registration/login, single-entry opt-in numerical log forwarding, optional rule-based Flask recommendations and 14-day remote history. The app works offline without this server; journals and notes are not automatically sent. A physical-device backend needs a self-hosted HTTPS deployment, not just a localhost Flask process.
 
@@ -35,10 +35,12 @@ See [architecture mapping](../ARCHITECTURE_IMPLEMENTATION.md), [Flask backend](.
 - **Real progress workflow:** personal check-in goals, weekly activity goals, daily streak and completed-day tracking, timed minutes, reflective journaling and historical helpfulness.
 - **Personal learning experiment:** an on-device next-day mood model learns from the user's own consecutive recorded check-ins only, and displays an estimate only when chronological holdout results beat a simple baseline. It is not a clinical model. Synthetic Logistic Regression/Decision Tree/Random Forest artifacts remain test fixtures and are not shown to users.
 - **Privacy:** local-first encrypted records, no ad tracking or analytics, and no automatic cloud sync. The optional research bridge sends a single numerical check-in only after explicit user action and consent; journal notes/context tags remain local. Legacy rows are migrated without deleting data; skipped optional measurements are marked not recorded.
+- **Personalisation UX:** users can add validated custom context labels, save favourite activities in encrypted preferences, filter/sort the private journal using both preset and custom contexts, and carry those preferences through validated encrypted backup/restore.
+- **Failure/accessibility baseline:** shared actions use larger touch targets, selection state is visually explicit, and a privacy-safe render error boundary avoids dumping application state into error UI. Full VoiceOver/TalkBack and physical-device accessibility validation remains a release gate.
 
 ## Android feature E2E test coverage
 
-The GitHub emulator workflow tests the **actual native APK**: startup, consent and SQLCipher unlock, mood save, confirmation handling, Journal display/edit, persistence across a force-stop/restart, guided activity completion and feedback, Progress screen and encrypted local database health. A failed step makes the workflow fail; it is NOT a reason to remove the assertion.
+The GitHub emulator workflow tests the **actual native APK**: startup, consent and SQLCipher unlock, mood save, confirmation handling, Journal display/edit, persistence across a force-stop/restart, guided activity completion and feedback, More hub → Progress screen and More hub → Privacy/Data encrypted local database health. A failed step makes the workflow fail; it is NOT a reason to remove the assertion.
 
 iOS CI currently covers native compilation, simulator installation and launch; identical full interaction coverage on iOS and both physical platforms remains pending.
 
