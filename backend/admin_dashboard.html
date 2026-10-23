@@ -9,53 +9,60 @@
 </head>
 <body>
 <a class="skipLink" href="#mainContent">Skip to main content</a>
+
 <div id="loginPage" class="loginPage">
-  <div class="loginCard">
-    <div class="logo">MI</div>
+  <form id="loginForm" class="loginCard" novalidate>
+    <div class="logo" aria-hidden="true">MI</div>
     <h1>Admin Console</h1>
     <p>Operational control for the optional Mood Insight backend. Private journal text, profile details and raw mood payloads are intentionally outside this console.</p>
-    <input id="password" class="field" type="password" autocomplete="current-password" placeholder="Admin password">
-    <button class="btn" style="width:100%" onclick="login()">Sign in securely</button>
-    <p id="loginStatus"></p>
-  </div>
+    <label class="fieldLabel" for="password">Administrator password</label>
+    <input id="password" class="field" type="password" autocomplete="current-password" placeholder="16+ character password" required>
+    <label class="fieldLabel" for="totp">Verification code <span class="muted">(when MFA is configured)</span></label>
+    <input id="totp" class="field" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code">
+    <button id="loginButton" class="btn fullButton" type="submit">Sign in securely</button>
+    <p id="loginStatus" role="status" aria-live="polite"></p>
+  </form>
 </div>
 
 <div id="console" class="shell hidden">
-  <aside id="sidebar" class="sidebar">
-    <div class="brand"><div class="logo">MI</div><div><b>Mood Insight</b><small>Operations Console</small></div></div>
+  <aside id="sidebar" class="sidebar" aria-label="Admin sections">
+    <div class="brand"><div class="logo" aria-hidden="true">MI</div><div><b>Mood Insight</b><small>Operations Console</small></div></div>
     <nav class="nav">
-      <button class="active" data-tab="overview" onclick="showTab('overview',this)"><span class="navIcon">01</span>Overview</button>
-      <button data-tab="users" onclick="showTab('users',this)"><span class="navIcon">02</span>Users</button>
-      <button data-tab="engagement" onclick="showTab('engagement',this)"><span class="navIcon">03</span>Engagement</button>
-      <button data-tab="recommendations" onclick="showTab('recommendations',this)"><span class="navIcon">04</span>Recommendations</button>
-      <button data-tab="announcements" onclick="showTab('announcements',this)"><span class="navIcon">05</span>Announcements</button>
-      <button data-tab="controls" onclick="showTab('controls',this)"><span class="navIcon">06</span>System & Controls</button>
-      <button data-tab="audit" onclick="showTab('audit',this)"><span class="navIcon">07</span>Audit Log</button>
+      <button class="active" data-tab="overview"><span class="navIcon">01</span>Overview</button>
+      <button data-tab="users"><span class="navIcon">02</span>Users</button>
+      <button data-tab="engagement"><span class="navIcon">03</span>Engagement</button>
+      <button data-tab="recommendations"><span class="navIcon">04</span>Recommendations</button>
+      <button data-tab="announcements"><span class="navIcon">05</span>Announcements</button>
+      <button data-tab="controls"><span class="navIcon">06</span>System & Controls</button>
+      <button data-tab="security"><span class="navIcon">07</span>Security</button>
+      <button data-tab="audit"><span class="navIcon">08</span>Audit Log</button>
     </nav>
     <div class="sideFoot">Privacy-preserving administration<br>Metadata and aggregate operations only.</div>
   </aside>
 
   <main class="main" id="mainContent" tabindex="-1">
     <header class="topbar">
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn secondary iconBtn mobileMenu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="topbarLeft">
+        <button id="mobileMenuButton" class="btn secondary iconBtn mobileMenu" aria-label="Open navigation">☰</button>
         <div class="pageTitle"><h1 id="pageName">Overview</h1><p id="pageDesc">Operational health and recent backend activity.</p></div>
       </div>
       <div class="topActions">
-        <button class="btn secondary labelBtn" onclick="refreshCurrent()">Refresh</button>
-        <button class="btn secondary" onclick="logout()">Log out</button>
+        <button id="refreshButton" class="btn secondary labelBtn">Refresh</button>
+        <button id="logoutButton" class="btn secondary">Log out</button>
       </div>
     </header>
 
     <div class="privacy"><b>Privacy boundary:</b> Admin views intentionally exclude decrypted name/age, journal notes, context tags and raw mood values. User operations are based on opaque IDs and usage metadata.</div>
 
     <section id="tab-overview">
-      <div id="kpis" class="kpiGrid"></div>
+      <div id="kpis" class="kpiGrid" aria-live="polite"></div>
       <div class="grid2">
         <div class="card panel">
-          <div class="panelHead"><div><h2>Backend activity trend</h2><p>Daily counts; no mood values are decrypted.</p></div><div id="overviewRange" class="segment"><button class="active" onclick="setOverviewRange(30,this)">30d</button><button onclick="setOverviewRange(90,this)">90d</button></div></div>
+          <div class="panelHead"><div><h2>Backend activity trend</h2><p>Daily counts; no mood values are decrypted.</p></div>
+            <div id="overviewRange" class="segment" aria-label="Overview chart range"><button class="active" data-range="30">30d</button><button data-range="90">90d</button></div>
+          </div>
           <div id="trendChart" class="chart"></div>
-          <div class="legend"><span><i style="background:#2d776e"></i>Mood logs</span><span><i style="background:#d38d5b"></i>Activities</span><span><i style="background:#7890c5"></i>Active users</span></div>
+          <div class="legend"><span><i class="legendMood"></i>Mood logs</span><span><i class="legendActivity"></i>Activities</span><span><i class="legendActive"></i>Active users</span></div>
         </div>
         <div class="card panel">
           <div class="panelHead"><div><h2>Recommendation usage</h2><p>Most-used backend activity IDs.</p></div></div>
@@ -63,30 +70,34 @@
         </div>
       </div>
       <div class="grid2 equal">
+        <div class="card panel"><div class="panelHead"><div><h2>Activation funnel</h2><p>How optional-backend accounts progress into recorded usage.</p></div></div><div id="funnel" class="funnel"></div></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Recent activation cohorts</h2><p>7-day activation after backend registration.</p></div></div><div id="cohorts" class="barList"></div></div>
+      </div>
+      <div class="grid2 equal">
         <div class="card panel"><div class="panelHead"><div><h2>Operational pulse</h2><p>Recent adoption and feedback signals.</p></div></div><div id="pulse" class="statMini"></div></div>
-        <div class="card panel"><div class="panelHead"><div><h2>Data boundary</h2><p>What this console can and cannot inspect.</p></div></div><p class="muted" style="font-size:12px;line-height:1.7;margin:0">Visible: account IDs, timestamps, counts, activity IDs, duration metadata, helpful/not-helpful aggregates, feature configuration, audit events and service health.<br><br>Not visible: decrypted profile fields, raw mood scores, private notes, context tags, or local-only mobile data.</p></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Data boundary</h2><p>What this console can and cannot inspect.</p></div></div><p class="muted bodyCopy">Visible: account IDs, timestamps, counts, activity IDs, duration metadata, helpful/not-helpful aggregates, feature configuration, audit events and service health.<br><br>Not visible: decrypted profile fields, raw mood scores, private notes, context tags, or local-only mobile data.</p></div>
       </div>
     </section>
 
     <section id="tab-users" class="hidden">
       <div class="card panel">
-        <div class="panelHead"><div><h2>User directory</h2><p>Search and inspect backend-account metadata without opening private payloads.</p></div><button class="btn secondary" onclick="exportUsers()">Export metadata CSV</button></div>
+        <div class="panelHead"><div><h2>User directory</h2><p>Search and inspect backend-account metadata without opening private payloads.</p></div><button id="exportUsersButton" class="btn secondary">Export metadata CSV</button></div>
         <div class="toolbar">
-          <input id="userSearch" class="field" placeholder="Search user ID" oninput="debounceUsers()">
-          <select id="userStatus" class="select" onchange="loadUsers()"><option value="all">All statuses</option><option value="active">Active · 30d</option><option value="new">New · 7d</option><option value="dormant">Dormant</option><option value="disabled">Disabled</option></select>
-          <select id="userSort" class="select" onchange="loadUsers()"><option value="created_desc">Newest first</option><option value="last_seen_desc">Recently active</option><option value="mood_desc">Most mood logs</option><option value="activity_desc">Most activities</option><option value="created_asc">Oldest first</option></select>
+          <label class="srOnly" for="userSearch">Search user ID</label><input id="userSearch" class="field" placeholder="Search user ID">
+          <label class="srOnly" for="userStatus">User status</label><select id="userStatus" class="select"><option value="all">All statuses</option><option value="active">Active · 30d</option><option value="new">New · 7d</option><option value="dormant">Dormant</option><option value="disabled">Disabled</option></select>
+          <label class="srOnly" for="userSort">Sort users</label><select id="userSort" class="select"><option value="created_desc">Newest first</option><option value="last_seen_desc">Recently active</option><option value="mood_desc">Most mood logs</option><option value="activity_desc">Most activities</option><option value="created_asc">Oldest first</option></select>
         </div>
-        <div class="tableWrap"><table><thead><tr><th>User</th><th>Status</th><th>Created</th><th>Last seen</th><th>Mood logs</th><th>Activities</th><th>Minutes</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
-        <div id="userPager" class="toolbar" style="margin-top:12px;justify-content:space-between"></div>
+        <div class="tableWrap"><table><caption class="srOnly">Backend users metadata</caption><thead><tr><th>User</th><th>Status</th><th>Created</th><th>Last seen</th><th>Mood logs</th><th>Activities</th><th>Minutes</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+        <div id="userPager" class="toolbar pager"></div>
       </div>
     </section>
 
     <section id="tab-engagement" class="hidden">
       <div class="grid2">
         <div class="card panel">
-          <div class="panelHead"><div><h2>Engagement timeline</h2><p>Registrations, active users, check-ins and activities.</p></div><select id="engagementDays" class="select" onchange="loadEngagement()"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div>
+          <div class="panelHead"><div><h2>Engagement timeline</h2><p>Registrations, active users, check-ins and activities.</p></div><select id="engagementDays" class="select" aria-label="Engagement date range"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div>
           <div id="engagementChart" class="chart"></div>
-          <div class="legend"><span><i style="background:#2d776e"></i>Check-ins</span><span><i style="background:#d38d5b"></i>Activities</span><span><i style="background:#7890c5"></i>Active users</span><span><i style="background:#9c78b7"></i>Registrations</span></div>
+          <div class="legend"><span><i class="legendMood"></i>Check-ins</span><span><i class="legendActivity"></i>Activities</span><span><i class="legendActive"></i>Active users</span><span><i class="legendRegistration"></i>Registrations</span></div>
         </div>
         <div class="card panel"><div class="panelHead"><div><h2>Activity feedback</h2><p>Descriptive usage, not clinical effectiveness.</p></div></div><div id="engagementUsage" class="barList"></div></div>
       </div>
@@ -94,8 +105,9 @@
 
     <section id="tab-recommendations" class="hidden">
       <div class="card panel">
-        <div class="panelHead"><div><h2>Backend recommendation catalog</h2><p>Edit presentation, availability and tie-break priority for explainable backend rules.</p></div></div>
-        <div class="muted" style="font-size:11px;margin-bottom:10px">Priority only breaks ties after the hard-coded explainable context score. It does not turn the backend into a clinical model.</div>
+        <div class="panelHead"><div><h2>Recommendation rule CMS</h2><p>Manage safe declarative rules used by the optional backend recommendation engine.</p></div><button id="newRecommendationButton" class="btn secondary">New rule</button></div>
+        <div class="muted bodyCopy">Rules are constrained to reviewed operators such as stress ≥ threshold, sleep &lt; threshold, movement &lt; threshold, mood ≤ threshold, energy ≤ threshold, sleep-quality ≤ threshold, or always. No arbitrary code or diagnosis logic can be entered here.</div>
+        <div id="newRecommendationForm" class="ruleCreate hidden"></div>
         <div id="recommendationRows"></div>
       </div>
     </section>
@@ -105,16 +117,16 @@
         <div class="card panel">
           <div class="panelHead"><div><h2>Publish announcement</h2><p>Shown only to clients that explicitly connect to this backend.</p></div></div>
           <div class="formGrid">
-            <input id="annTitle" class="field wide" placeholder="Announcement title">
-            <textarea id="annBody" class="textarea wide" placeholder="Short operational message"></textarea>
-            <select id="annLevel" class="select"><option value="info">Info</option><option value="maintenance">Maintenance</option><option value="important">Important</option></select>
-            <input id="annExpiry" class="field" type="date" title="Optional expiry date">
-            <button class="btn wide" onclick="createAnnouncement()">Publish announcement</button>
+            <label class="srOnly" for="annTitle">Announcement title</label><input id="annTitle" class="field wide" placeholder="Announcement title">
+            <label class="srOnly" for="annBody">Announcement message</label><textarea id="annBody" class="textarea wide" placeholder="Short operational message"></textarea>
+            <label class="srOnly" for="annLevel">Announcement level</label><select id="annLevel" class="select"><option value="info">Info</option><option value="maintenance">Maintenance</option><option value="important">Important</option></select>
+            <label class="srOnly" for="annExpiry">Announcement expiry</label><input id="annExpiry" class="field" type="date" title="Optional expiry date">
+            <button id="publishAnnouncementButton" class="btn wide">Publish announcement</button>
           </div>
         </div>
-        <div class="card panel"><div class="panelHead"><div><h2>Communication rules</h2><p>Safe defaults for a wellbeing product.</p></div></div><p class="muted" style="font-size:12px;line-height:1.7">Announcements are operational notices, not therapy or emergency messaging. They can expire automatically. Turning off the Announcements feature flag returns an empty public feed without deleting draft/history records.</p></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Communication rules</h2><p>Safe defaults for a wellbeing product.</p></div></div><p class="muted bodyCopy">Announcements are operational notices, not therapy or emergency messaging. They can expire automatically. Turning off the Announcements feature flag returns an empty public feed without deleting draft/history records.</p></div>
       </div>
-      <div class="card panel" style="margin-top:14px"><div class="panelHead"><div><h2>Announcement history</h2><p>Active, paused and expired messages.</p></div></div><div id="announcementsList"></div></div>
+      <div class="card panel sectionGap"><div class="panelHead"><div><h2>Announcement history</h2><p>Active, paused and expired messages.</p></div></div><div id="announcementsList"></div></div>
     </section>
 
     <section id="tab-controls" class="hidden">
@@ -122,23 +134,33 @@
         <div class="card panel"><div class="panelHead"><div><h2>Feature controls</h2><p>Live backend switches with audited changes.</p></div></div><div id="flags"></div></div>
         <div class="card panel"><div class="panelHead"><div><h2>System diagnostics</h2><p>Runtime and storage health without decrypted payload access.</p></div></div><div id="systemGrid" class="systemGrid"></div></div>
       </div>
-      <div class="card panel" style="margin-top:14px"><div class="panelHead"><div><h2>Database record counts</h2><p>Operational inventory by table.</p></div></div><div id="tableCounts" class="barList"></div></div>
+      <div class="grid2 equal">
+        <div class="card panel"><div class="panelHead"><div><h2>Database record counts</h2><p>Operational inventory by table.</p></div></div><div id="tableCounts" class="barList"></div></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Retention lifecycle</h2><p>Preview and enforce the 365-day backend retention boundary.</p></div></div><div id="retention"></div><button id="purgeRetentionButton" class="btn secondary sectionButton">Run retention purge now</button></div>
+      </div>
+    </section>
+
+    <section id="tab-security" class="hidden">
+      <div class="grid2 equal">
+        <div class="card panel"><div class="panelHead"><div><h2>Current admin session</h2><p>Revocable server-side session paired with the signed bearer token.</p></div></div><div id="securitySummary" class="systemGrid"></div></div>
+        <div class="card panel"><div class="panelHead"><div><h2>Security posture</h2><p>Admin security controls configured at runtime.</p></div></div><div id="securityPosture"></div></div>
+      </div>
+      <div class="card panel sectionGap"><div class="panelHead"><div><h2>Admin sessions</h2><p>Review and revoke active or historical sessions.</p></div></div><div class="tableWrap"><table><caption class="srOnly">Administrator sessions</caption><thead><tr><th>Session</th><th>Created</th><th>Last seen</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead><tbody id="sessionsBody"></tbody></table></div></div>
     </section>
 
     <section id="tab-audit" class="hidden">
       <div class="card panel">
         <div class="panelHead"><div><h2>Admin audit log</h2><p>Search security-sensitive changes and administrative actions.</p></div></div>
-        <div class="toolbar"><input id="auditSearch" class="field" placeholder="Search action, target or detail" oninput="debounceAudit()"><select id="auditAction" class="select" onchange="loadAudit()"><option value="">All actions</option></select></div>
-        <div class="tableWrap"><table><thead><tr><th>Time</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody id="auditBody"></tbody></table></div>
+        <div class="toolbar"><label class="srOnly" for="auditSearch">Search audit events</label><input id="auditSearch" class="field" placeholder="Search action, target or detail"><label class="srOnly" for="auditAction">Filter audit action</label><select id="auditAction" class="select"><option value="">All actions</option></select></div>
+        <div class="tableWrap"><table><caption class="srOnly">Admin audit events</caption><thead><tr><th>Time</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody id="auditBody"></tbody></table></div>
       </div>
     </section>
   </main>
 </div>
 
-<div id="drawerBackdrop" class="drawerBackdrop hidden" onclick="closeDrawer()"></div>
-<aside id="drawer" class="drawer hidden"></aside>
-<div id="toast" class="toast hidden"></div>
-
+<div id="drawerBackdrop" class="drawerBackdrop hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true" aria-label="User metadata details"></aside>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 <script src="/admin/assets/admin.js" defer></script>
 </body>
 </html>
