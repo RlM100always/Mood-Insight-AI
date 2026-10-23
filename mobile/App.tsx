@@ -10,7 +10,7 @@ import {
   hasConsent, acceptConsent, openVault, listEntries, saveEntry, removeEntry,
   listSessions, logSession, rateSession, eraseEverything, loadPreferences, savePreferences, checkVaultHealth
 } from './src/data/vault';
-import {currentStreak, detectPatterns, localDay, readableDay, recommend} from './src/insights';
+import {currentStreak, localDay, recommend} from './src/insights';
 import {windowSummary} from './src/advanced';
 import {DEFAULT_PREFERENCES,suggestedNextStep} from './src/deep';
 import {buildEntryInput} from './src/checkin';
@@ -201,7 +201,6 @@ export default function App() {
   };
   const activities = useMemo(()=>recommend(entries),[entries]);
   const nextStep = useMemo(()=>suggestedNextStep(entries,sessions),[entries,sessions]);
-  const patterns = useMemo(()=>detectPatterns(entries),[entries]);
   const weekSummary = useMemo(()=>windowSummary(entries,7),[entries]);
   const recent = useMemo(()=>[...entries].sort((a,b)=>a.day.localeCompare(b.day)).slice(-7),[entries]);
   const completed = sessions.length;
@@ -342,13 +341,6 @@ export default function App() {
             </>}
             <Text style={s.footnote}>Australian statistics elsewhere in this app are population context, not individual-level training data. This personal model is not Australian-population-trained or clinically validated.</Text>
           </Card>
-          <Text style={s.h2}>Detected associations</Text>
-          {patterns.length?patterns.map((p,i)=><Card key={p.id} tint={i%2===0?C.teal:C.peach}>
-            <Text style={s.kicker}>{p.count} DAYS COMPARED</Text>
-            <Text style={s.h3}>{p.title}</Text><Text style={s.copy}>{p.detail}</Text>
-          </Card>):<Card><Text style={s.h3}>No dependable comparisons yet</Text>
-            <Text style={s.copy}>Try logging for a few more days. We will never invent statistics to fill empty charts.</Text>
-          </Card>}
           <InsightExplorer entries={entries} sessions={sessions}/>
           <Text style={s.footnote}>These are descriptive observations, not diagnoses, predictions, or evidence that one activity caused a mood change.</Text>
         </>:null}
