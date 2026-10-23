@@ -20,7 +20,9 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
  const [showAll,setShowAll]=useState(false);
  const items=useMemo(()=>recommendationPlan(entries,sessions,preferences,situation,showAll),[entries,sessions,preferences,situation,showAll]);
  const outcomes=useMemo(()=>activityOutcomeInsights(sessions),[sessions]);
+ const today=localDay();
  const latest=[...entries].sort((a,b)=>b.day.localeCompare(a.day))[0];
+ const todayEntry=entries.find(e=>e.day===today);
  useEffect(()=>{
   if(!running||!active)return;
   const t=setInterval(()=>setRemaining(n=>{
@@ -36,7 +38,7 @@ export function ActivityExplorer({entries,sessions,preferences,situation,onSitua
   setBusy(true);
   try{
    const elapsed=active.minutes*60-remaining;
-   await logSession(active.id,localDay(),elapsed,latest?.mood??null);
+   await logSession(active.id,today,elapsed,todayEntry?.mood??null);
    await refresh();
    setActive(null);setRunning(false);
    Alert.alert('Saved locally','Activity recorded. Share feedback below when you are ready.');
