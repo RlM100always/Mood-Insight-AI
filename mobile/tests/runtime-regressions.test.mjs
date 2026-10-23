@@ -37,6 +37,15 @@ test('tab navigation resets the shared content scroll position',()=>{
   assert.ok(app.includes('onPress={()=>navigateTab(n.label)}'));
 });
 
+test('backup export reports encrypted file creation before awaiting the external share sheet',()=>{
+  const ui=readFileSync(new URL('../src/ui/BackupRestore.tsx',import.meta.url),'utf8');
+  const prepared=ui.indexOf("setStatus('Encrypted backup prepared.");
+  const share=ui.indexOf('await Sharing.shareAsync');
+  assert.ok(prepared>=0);
+  assert.ok(share>prepared);
+  assert.ok(ui.includes("setPassphrase('');setConfirm('');setBusy(false)"));
+});
+
 test('Android smoke exercises encrypted backup export, restore and failure cases',()=>{
   const script=readFileSync(new URL('../scripts/android-smoke.sh',import.meta.url),'utf8');
   const fixture=readFileSync(new URL('../scripts/create-e2e-backup.mjs',import.meta.url),'utf8');
