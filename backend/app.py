@@ -41,6 +41,7 @@ def create_app(config: dict | None = None) -> Flask:
         AUTH_RATE_LIMIT_ATTEMPTS=8,
         AUTH_RATE_LIMIT_WINDOW_SECONDS=900,
         ADMIN_PASSWORD=os.environ.get("MOOD_ADMIN_PASSWORD", ""),
+        ADMIN_TOTP_SECRET=os.environ.get("MOOD_ADMIN_TOTP_SECRET", ""),
         ADMIN_TOKEN_TTL=1800,
     )
     if config:
@@ -49,6 +50,7 @@ def create_app(config: dict | None = None) -> Flask:
     master = app.config["MASTER_KEY"]
     secret = app.config["AUTH_SECRET"]
     admin_password = app.config.get("ADMIN_PASSWORD","")
+    admin_totp_secret = app.config.get("ADMIN_TOTP_SECRET","")
     if not isinstance(master, str) or len(master) != 64:
         raise RuntimeError("Set MOOD_API_AES_KEY to a random 64-hex-character (32-byte) key.")
     try:
@@ -61,6 +63,8 @@ def create_app(config: dict | None = None) -> Flask:
         raise RuntimeError("MOOD_ADMIN_PASSWORD must be text.")
     if admin_password and len(admin_password) < 16:
         raise RuntimeError("MOOD_ADMIN_PASSWORD must be at least 16 characters when admin access is enabled.")
+    if not isinstance(admin_totp_secret,str):
+        raise RuntimeError("MOOD_ADMIN_TOTP_SECRET must be text.")
     aes = AESGCM(key)
     signer = URLSafeTimedSerializer(secret, salt="mood-insight-local-api-v1")
     admin_signer = URLSafeTimedSerializer(secret, salt="mood-insight-admin-v1")
@@ -154,18 +158,43 @@ def create_app(config: dict | None = None) -> Flask:
             db.execute("""CREATE TABLE IF NOT EXISTS activity_catalog (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, minutes INTEGER NOT NULL,
                 difficulty TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
-                priority INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)""")
+                priority INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'balance',
+                rule_type TEXT NOT NULL DEFAULT 'always',
+                threshold REAL NOT NULL DEFAULT 0,
+                reason TEXT NOT NULL DEFAULT 'A small wellbeing option you can choose if it fits.')""")
+            activity_columns={row["name"] for row in db.execute("PRAGMA table_info(activity_catalog)").fetchall()}
+            if "category" not in activity_columns:
+                db.execute("ALTER TABLE activity_catalog ADD COLUMN category TEXT NOT NULL DEFAULT 'balance'")
+            if "rule_type" not in activity_columns:
+                db.execute("ALTER TABLE activity_catalog ADD COLUMN rule_type TEXT NOT NULL DEFAULT 'always'")
+            if "threshold" not in activity_columns:
+                db.execute("ALTER TABLE activity_catalog ADD COLUMN threshold REAL NOT NULL DEFAULT 0")
+            if "reason" not in activity_columns:
+                db.execute("ALTER TABLE activity_catalog ADD COLUMN reason TEXT NOT NULL DEFAULT 'A small wellbeing option you can choose if it fits.'")
             default_activities=[
-                ("breathing","Calming breath reset",5,"Easy",1,0),
-                ("winddown","Gentle wind-down routine",15,"Easy",1,0),
-                ("walk","Mindful walk",10,"Easy",1,0),
-                ("journal","Three-line reflection",8,"Easy",1,0),
-                ("connect","Contact someone you trust",10,"Easy",1,0),
+                ("breathing","Calming breath reset",5,"Easy",1,0,"calm","stress_gte",4.0,"Your recorded stress is elevated, so a short calming reset may fit."),
+                ("winddown","Gentle wind-down routine",15,"Easy",1,0,"sleep","sleep_lt",7.0,"Your recorded sleep is below the configured sleep threshold."),
+                ("walk","Mindful walk",10,"Easy",1,0,"energy","movement_lt",20.0,"Your recorded movement is below the configured movement threshold."),
+                ("journal","Three-line reflection",8,"Easy",1,0,"balance","mood_lte",2.0,"Your recorded mood is low, so a short reflection may help you pause and name what matters."),
+                ("connect","Contact someone you trust",10,"Easy",1,0,"connection","always",0.0,"A supportive connection is available as an optional general wellbeing choice."),
             ]
             for item in default_activities:
                 db.execute("""INSERT OR IGNORE INTO activity_catalog
-                    (id,title,minutes,difficulty,enabled,priority,updated_at)
-                    VALUES (?,?,?,?,?,?,datetime('now'))""",item)
+                    (id,title,minutes,difficulty,enabled,priority,category,rule_type,threshold,reason,updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))""",item)
+            for item in default_activities:
+                db.execute("""UPDATE activity_catalog SET
+                    category=CASE WHEN category='balance' AND id<> 'journal' THEN ? ELSE category END,
+                    rule_type=CASE WHEN rule_type='always' AND id<> 'connect' THEN ? ELSE rule_type END,
+                    threshold=CASE WHEN threshold=0 AND id<> 'connect' THEN ? ELSE threshold END,
+                    reason=CASE WHEN reason='A small wellbeing option you can choose if it fits.' THEN ? ELSE reason END
+                    WHERE id=?""",(item[6],item[7],item[8],item[9],item[0]))
+            db.execute("""CREATE TABLE IF NOT EXISTS admin_sessions (
+                id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+                revoked_at INTEGER, last_seen_at INTEGER NOT NULL)""")
+            db.execute("""CREATE INDEX IF NOT EXISTS idx_admin_sessions_expiry
+                          ON admin_sessions(expires_at,revoked_at)""")
             for flag_key,flag_value in DEFAULT_FLAGS.items():
                 db.execute(
                     "INSERT OR IGNORE INTO system_flags(key,value_json,updated_at) VALUES (?,?,datetime('now'))",
@@ -268,6 +297,10 @@ def create_app(config: dict | None = None) -> Flask:
         resp.headers["Cache-Control"]="no-store"
         resp.headers["X-Content-Type-Options"]="nosniff"
         resp.headers["Referrer-Policy"]="no-referrer"
+        resp.headers["X-Frame-Options"]="DENY"
+        resp.headers["Permissions-Policy"]="camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        if request.path.startswith("/admin"):
+            resp.headers["Content-Security-Policy"]="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
         return resp
 
     @app.get("/health")
@@ -390,24 +423,30 @@ def create_app(config: dict | None = None) -> Flask:
             value=valid_mood(payload)
         except ValueError as exc:
             return jsonify(error=str(exc)),400
-        rules={
-            "breathing":{"score":6 if value["stress"]>=4 else 2,"reason":f"Your logged stress is {value['stress']}/5."},
-            "winddown":{"score":6 if value["sleep_hours"]<7 else 2,"reason":f"You logged {value['sleep_hours']}h of sleep."},
-            "walk":{"score":5 if value["exercise_min"]<20 else 2,"reason":f"You logged {value['exercise_min']} minutes of movement."},
-            "journal":{"score":5 if value["mood"]<=2 else 2,"reason":"A reflection can help you name your feelings."},
-            "connect":{"score":3,"reason":"Social connection can be a supportive option."},
-        }
         with connect() as db:
-            catalog=db.execute("""SELECT id,title,minutes,difficulty,enabled,priority
+            catalog=db.execute("""SELECT id,title,minutes,difficulty,enabled,priority,
+                category,rule_type,threshold,reason
                 FROM activity_catalog ORDER BY id""").fetchall()
+        def rule_score(row):
+            rule=row["rule_type"]
+            threshold=float(row["threshold"])
+            matched=False
+            if rule=="always": matched=True
+            elif rule=="stress_gte": matched=value["stress"]>=threshold
+            elif rule=="sleep_lt": matched=value["sleep_hours"]<threshold
+            elif rule=="movement_lt": matched=value["exercise_min"]<threshold
+            elif rule=="mood_lte": matched=value["mood"]<=threshold
+            elif rule=="energy_lte": matched=value["energy"]<=threshold
+            elif rule=="sleep_quality_lte": matched=value["sleep_quality"]<=threshold
+            return 6 if matched and rule!="always" else (3 if matched else 1)
         choices=[]
         for row in catalog:
-            if int(row["enabled"])!=1 or row["id"] not in rules:
+            if int(row["enabled"])!=1:
                 continue
-            rule=rules[row["id"]]
+            score=rule_score(row)
             choices.append({"id":row["id"],"title":row["title"],"minutes":row["minutes"],
-                "difficulty":row["difficulty"],"score":rule["score"],"priority":row["priority"],
-                "reason":rule["reason"]})
+                "difficulty":row["difficulty"],"category":row["category"],"score":score,
+                "priority":row["priority"],"reason":row["reason"]})
         selected=sorted(choices,key=lambda x:(-x["score"],-x["priority"],x["id"]))[:3]
         for obj in selected:
             obj.pop("score",None);obj.pop("priority",None)
@@ -479,6 +518,7 @@ def create_app(config: dict | None = None) -> Flask:
         connect=connect,
         admin_signer=admin_signer,
         admin_password=admin_password,
+        admin_totp_secret=admin_totp_secret,
         auth_rate_limit=auth_rate_limit,
     )
     return app
